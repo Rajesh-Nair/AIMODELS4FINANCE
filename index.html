@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI/ML in Banking &amp; Finance — Curriculum</title>
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+  /* ── Index-specific overrides ── */
+  body { padding: 2rem 1rem 6rem; }
+
+  .index-header { margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--rule); }
+  .index-header h1 { font-size: 2.1rem; margin-bottom: .35rem; }
+  .index-header .subtitle { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
+
+  /* ── Module sections ── */
+  .module { margin: 2.5rem 0 .5rem; }
+  .module-label {
+    font-family: var(--font-sans);
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--muted);
+    margin-bottom: .65rem;
+    padding-bottom: .35rem;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  /* ── Lesson cards ── */
+  .lesson-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .6rem;
+  }
+  @media(max-width: 540px) { .lesson-grid { grid-template-columns: 1fr; } }
+
+  .lesson-card {
+    display: block;
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    padding: .8rem 1rem;
+    text-decoration: none;
+    color: var(--ink);
+    background: white;
+    transition: border-color .15s, background .15s;
+    position: relative;
+  }
+  .lesson-card:hover {
+    border-color: var(--accent);
+    background: var(--accent-light);
+    text-decoration: none;
+  }
+
+  .card-num {
+    font-family: var(--font-mono);
+    font-size: .7rem;
+    color: var(--muted);
+    margin-bottom: .15rem;
+    display: block;
+  }
+  .card-title {
+    font-family: var(--font-sans);
+    font-size: .92rem;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1.3;
+    margin-bottom: .3rem;
+  }
+  .card-desc {
+    font-family: var(--font-sans);
+    font-size: .79rem;
+    color: var(--muted);
+    line-height: 1.45;
+  }
+
+  /* ── Badge ── */
+  .badge {
+    display: inline-block;
+    font-family: var(--font-sans);
+    font-size: .65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    padding: .1rem .45rem;
+    border-radius: 3px;
+    margin-bottom: .3rem;
+  }
+  .badge.new { background: #e8f5e9; color: #1a5c2a; border: 1px solid #a5d6a7; }
+
+  /* ── Stats bar ── */
+  .stats {
+    display: flex;
+    gap: 2rem;
+    margin: 1.5rem 0 2rem;
+    font-family: var(--font-sans);
+    font-size: .85rem;
+    color: var(--muted);
+  }
+  .stat-num {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--accent);
+    display: block;
+    line-height: 1;
+    margin-bottom: .1rem;
+  }
+
+  /* ── Footer ── */
+  .index-footer {
+    margin-top: 3.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--rule);
+    font-family: var(--font-sans);
+    font-size: .82rem;
+    color: var(--muted);
+  }
+  .index-footer a { color: var(--muted); text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── Header ── -->
+  <div class="index-header">
+    <div class="lesson-meta">AI/ML in Banking &amp; Finance · Full Curriculum</div>
+    <h1>Curriculum Map</h1>
+    <p class="subtitle">28 lessons covering every major model domain in financial services — from credit risk to climate risk, from algo trading to pension LDI. Each lesson pairs technical ML depth with risk governance and regulatory context.</p>
+  </div>
+
+  <!-- ── Stats ── -->
+  <div class="stats">
+    <div><span class="stat-num">28</span>Lessons</div>
+    <div><span class="stat-num">10</span>Domains</div>
+    <div><span class="stat-num">100+</span>Quiz questions</div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       MODULE 1 — CREDIT RISK
+  ═══════════════════════════════════════════════ -->
+  <div class="module">
+    <div class="module-label">Module 1 · Credit Risk</div>
+    <div class="lesson-grid">
+
+      <a class="lesson-card" href="lessons/0001-credit-risk-pd-modelling.html">
+        <span class="card-num">Lesson 01</span>
+        <div class="card-title">PD Modelling</div>
+        <div class="card-desc">XGBoost vs scorecard, Gini coefficient, SHAP explainability, SR 11-7 model lifecycle</div>
+      </a>
+
+      <a class="lesson-card" href="lessons/0002-lgd-estimation.html">
+        <span class="card-num">Lesson 02</span>
+        <div class="card-title">LGD Estimation</div>
+        <div class="card-desc">Bimodal distribution, two-stage model, downturn LGD, right-censoring problem</div>
+      </a>
+
+      <a class="lesson-card" href="lessons/0003-ead-forecasting.html">
+        <span class="card-num">Lesson 03</span>
+        <div class="card-title">EAD Forecasting</div>
+        <div class="card-desc">CCF formula, revolving facility drawdown, panic draw, reference date problem</div>
+      </a>
+
+      <a class="lesson-card" href="lessons/0004-credit-scoring-alt-data.html">
+        <span class="card-num">Lesson 04</span>
+        <div class="card-title">Credit Scoring &amp; Alternative Data</div>
+        <div class="card-desc">Alt data taxonomy, proxy variable risk, four-fifths rule, PSI drift monitoring</div>
+      </a>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       MODULE 2 — MARKET RISK
+  ═══════════════════════════════════════════════ -->
+  <div class="module">
+    <div class="module-label">Module 2 · Market Risk</div>
+    <div class="lesson-grid">
+
+      <a class="lesson-card" href="lessons/0005-var-es-market-risk.html">
+        <span class="card-num">Lesson 05</span>
+        <div class="card-title">VaR &amp; Expected Shortfall</div>
+        <div class="card-desc">GARCH(1,1), fat tails, FRTB ES@97.5%, backtesting traffic-light zones</div>
+      </a>
+
+      <a class="lesson-card" href="lessons/0006-frtb-nmrf.html">
+        <span class="card-num">Lesson 06</span>
+        <div class="card-title">FRTB &amp; NMRF</div>
+        <div class="card-desc">24 RPO/year test, SES vs IMA capital, PCA factor decomposition, basis risk</div>
+      </a>
+
+      <a class="lesson-card" href="lessons/0007-algo-trading-signals.html">
+        <span class="card-num">Lesson 07</span>
+        <div class="card-title">Algo Trading Signal Generation</div>
+        <div class="card-desc">IC/ICIR, walk-forward validation, purge gaps, kill switch governance</div>
+      </a>
+
+      <a class="lesson-card" href="lessons/0008-ccar-stress-testing.html">
+        <span class="card-num">Lesson 08</span>
+        <div class="card-title">CCAR &amp; Stress Testing</div>
+        <div class="card-desc">Satellite models, GAN scenario generation, SR 15-18, Fed challenge function</div>
+      </a>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       MODULE 3 — FINANCIAL CRIME
+  ═══════════════════════════════════════════════ -->
+  <div class="module">
+    <div class="module-label">Module 3 · Financial Crime</div>
+    <div class="lesson-grid">
+
+      <a class="lesson-card" href="lessons/0009-fraud-detection.html">
+        <span class="card-num">Lesson 09</span>
+        <div class="card-title">Fraud Detection</div>
+        <div class="card-desc">PR curves, autoencoder anomaly detection, SMOTE, adversarial drift, threshold calibration</div>
+      </a>
+
+      <a class="lesson-card" href="lessons/0010-aml.html">
+        <span class="card-num">Lesson 10</span>
+        <div class="card-title">Anti-Money Laundering</div>
+        <div class="card-desc">Graph ML, GNN message passing, NLP on SARs, selective labelling bias, FATF</div>
+      </a>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       MODULE 4 — PROVISIONING & TRADED RISK
+  ═══════════════════════════════════════════════ -->
+  <div class="module">
+    <div class="module-label">Module 4 · Provisioning &amp; Traded Risk</div>
+    <div class="lesson-grid">
+
+      <a class="lesson-card" href="lessons/0011-listwise-mle-ranking.html">
+        <span class="card-num">Lesson 11</span>
+        <div class="card-title">Listwise MLE &amp; Ranking Models</div>
+        <div class="card-desc">Plackett-Luce, NDCG@k, position bias / IPW, Consumer Duty constraints</div>
+      </a>
+
+      <a class="lesson-card" href="lessons/0012-ifrs9-cecl-provisioning.html">
+        <span class="card-num">Lesson 12</span>
+        <div class="card-title">IFRS9 &amp; CECL Provisioning</div>
+        <div class="card-desc">Three-stage ECL, PIT vs TTC PD, SICR, FLI multi-scenario, COVID overlay</div>
+      </a>
+
+      <a class="lesson-card" href="lessons/0013-ccr-cva-pfe.html">
+        <span class="card-num">Lesson 13</span>
+        <div class="card-title">CCR — CVA, PFE &amp; XVA</div>
+        <div class="card-desc">PFE hump profile, CVA formula, XVA desk, NN surrogate speedup, wrong-way risk</div>
+      </a>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       MODULE 5 — BALANCE SHEET RISK
+  ═══════════════════════════════════════════════ -->
+  <div class="module">
+    <div class="module-label">Module 5 · Balance Sheet Risk</div>
+    <div class="lesson-grid">
+
+      <a class="lesson-card" href="lessons/0014-irrbb.html">
+        <span class="card-num">Lesson 14</span>
+        <div class="card-title">IRRBB</div>
+        <div class="card-desc">EVE vs NII, BCBS 368 shocks, deposit beta, prepayment burnout, SVB 2023</div>
+      </a>
+
+      <a class="lesson-card" href="lessons/0015-liquidity-risk.html">
+        <span class="card-num">Lesson 15</span>
+        <div class="card-title">Liquidity Risk Models</div>
+        <div class="card-desc">LCR/NSFR, deposit flow ML, survival horizon, intraday liquidity, SVB case study</div>
+      </a>
+
+      <a class="lesson-card" href="lessons/0016-climate-risk-seg.html">
+        <span class="card-num">Lesson 16</span>
+        <div class="card-title">Climate Risk &amp; SEG</div>
+        <div class="card-desc">NGFS scenarios, physical/transition risk, geospatial ML, climate ECL overlay</div>
+      </a>
+
+      <a class="lesson-card" href="lessons/0017-economic-capital.html">
+        <span class="card-num">Lesson 17</span>
+        <div class="card-title">Economic Capital Models</div>
+        <div class="card-desc">ICAAP, CreditMetrics, copula aggregation, Gaussian copula failure, RAROC</div>
+      </a>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       MODULE 6 — INVESTMENT & CAPITAL MARKETS
+  ═══════════════════════════════════════════════ -->
+  <div class="module">
+    <div class="module-label">Module 6 · Investment &amp; Capital Markets</div>
+    <div class="lesson-grid">
+
+      <a class="lesson-card" href="lessons/0018-asset-management.html">
+        <span class="card-num">Lesson 18</span>
+        <div class="card-title">Asset Management &amp; Investment Models</div>
+        <div class="card-desc">Factor models, HRP, Black-Litterman with ML views, ESG/SFDR, robo-advisory</div>
+      </a>
+
+      <a class="lesson-card" href="lessons/0019-capital-markets-pricing.html">
+        <span class="card-num">Lesson 19</span>
+        <div class="card-title">Capital Markets Product Pricing</div>
+        <div class="card-desc">Vol surface, local/stochastic vol, deep calibration, differential ML, XVA integration</div>
+      </a>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       MODULE 7 — INSURANCE & PENSIONS
+  ═══════════════════════════════════════════════ -->
+  <div class="module">
+    <div class="module-label">Module 7 · Insurance &amp; Pensions</div>
+    <div class="lesson-grid">
+
+      <a class="lesson-card" href="lessons/0020-insurance-ifrs17.html">
+        <span class="card-num">Lesson 20</span>
+        <div class="card-title">Insurance Models — IFRS17</div>
+        <div class="card-desc">BBA/CSM, frequency×severity claims ML, Lee-Carter longevity, IBNR reserving</div>
+      </a>
+
+      <a class="lesson-card" href="lessons/0021-pension-risk.html">
+        <span class="card-num">Lesson 21</span>
+        <div class="card-title">Pension Risk Models</div>
+        <div class="card-desc">DB/DC, LDI mechanics, longevity swaps, 2022 UK LDI crisis &amp; collateral spiral</div>
+      </a>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       MODULE 8 — OPERATIONAL & RECOVERY
+  ═══════════════════════════════════════════════ -->
+  <div class="module">
+    <div class="module-label">Module 8 · Operational &amp; Recovery Risk</div>
+    <div class="lesson-grid">
+
+      <a class="lesson-card" href="lessons/0022-cyber-risk.html">
+        <span class="card-num">Lesson 22</span>
+        <div class="card-title">Cyber Risk Models</div>
+        <div class="card-desc">LDA, FAIR framework, DORA/CBEST, ML for intrusion detection &amp; quantification</div>
+      </a>
+
+      <a class="lesson-card" href="lessons/0023-recovery-asset-models.html">
+        <span class="card-num">Lesson 23</span>
+        <div class="card-title">Recovery Asset Models</div>
+        <div class="card-desc">NPL lifecycle, workout strategy RL/bandits, REO AVMs, EBA NPL guidelines</div>
+      </a>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       MODULE 9 — TREASURY, HR & SERVICES
+  ═══════════════════════════════════════════════ -->
+  <div class="module">
+    <div class="module-label">Module 9 · Treasury, HR &amp; Services</div>
+    <div class="lesson-grid">
+
+      <a class="lesson-card" href="lessons/0024-treasury-accounting.html">
+        <span class="card-num">Lesson 24</span>
+        <div class="card-title">Treasury &amp; Accounting Models</div>
+        <div class="card-desc">FTP, LIBOR transition, IFRS9 hedge accounting, balance sheet optimisation</div>
+      </a>
+
+      <a class="lesson-card" href="lessons/0025-hr-models.html">
+        <span class="card-num">Lesson 25</span>
+        <div class="card-title">HR Models</div>
+        <div class="card-desc">Attrition ML, fair pay regression, GDPR Article 22, CRD V MRT bonus cap</div>
+      </a>
+
+      <a class="lesson-card" href="lessons/0026-security-services-pricing.html">
+        <span class="card-num">Lesson 26</span>
+        <div class="card-title">Security Services Product Pricing</div>
+        <div class="card-desc">Custody pricing, securities lending optimisation, corporate action NLP automation</div>
+      </a>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       MODULE 10 — COMPLIANCE & RETAIL STRATEGY
+  ═══════════════════════════════════════════════ -->
+  <div class="module">
+    <div class="module-label">Module 10 · Compliance &amp; Retail Credit Strategy</div>
+    <div class="lesson-grid">
+
+      <a class="lesson-card" href="lessons/0027-regulatory-compliance-risk.html">
+        <span class="card-num">Lesson 27</span>
+        <div class="card-title">Regulatory Compliance Risk</div>
+        <div class="card-desc">Trade surveillance, sanctions fuzzy matching, Consumer Duty outcome monitoring</div>
+      </a>
+
+      <a class="lesson-card" href="lessons/0028-sherwood-models.html">
+        <span class="card-num">Lesson 28</span>
+        <div class="card-title">Sherwood Models</div>
+        <div class="card-desc">Customer-level acquisition P&L, vintage analysis, credit limit optimisation, in-life portfolio management</div>
+      </a>
+
+    </div>
+  </div>
+
+  <!-- ── Footer ── -->
+  <div class="index-footer">
+    <p>Each lesson includes technical ML content, a risk &amp; governance section, and a retrieval-practice quiz.
+       All lessons are self-contained HTML files — no build step required.</p>
+    <p style="margin-top:.5rem;">
+      <a href="RESOURCES.md">Resources</a> ·
+      <a href="NOTES.md">Curriculum notes</a> ·
+      <em>AI/ML in Banking &amp; Finance</em>
+    </p>
+  </div>
+
+</div>
+</body>
+</html>

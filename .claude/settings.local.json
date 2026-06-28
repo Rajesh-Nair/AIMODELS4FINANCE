@@ -5,7 +5,8 @@
       "PowerShell(Start-Process \"C:\\\\Study\\\\Myprojects\\\\claudeprojects\\\\AImodels4finance\\\\lessons\\\\0006-frtb-nmrf.html\"; Start-Sleep -Seconds 1; Start-Process \"C:\\\\Study\\\\Myprojects\\\\claudeprojects\\\\AImodels4finance\\\\lessons\\\\0007-algo-trading-signals.html\"; Start-Sleep -Seconds 1; Start-Process \"C:\\\\Study\\\\Myprojects\\\\claudeprojects\\\\AImodels4finance\\\\lessons\\\\0008-ccar-stress-testing.html\")",
       "PowerShell(Start-Process \"C:\\\\Study\\\\Myprojects\\\\claudeprojects\\\\AImodels4finance\\\\lessons\\\\0009-fraud-detection.html\"; Start-Sleep -Seconds 1; Start-Process \"C:\\\\Study\\\\Myprojects\\\\claudeprojects\\\\AImodels4finance\\\\lessons\\\\0010-aml.html\"; Start-Sleep -Seconds 1; Start-Process \"C:\\\\Study\\\\Myprojects\\\\claudeprojects\\\\AImodels4finance\\\\lessons\\\\0011-listwise-mle-ranking.html\")",
       "PowerShell(Start-Process \"C:\\\\Study\\\\Myprojects\\\\claudeprojects\\\\AImodels4finance\\\\lessons\\\\0012-ifrs9-cecl-provisioning.html\"; Start-Sleep -Seconds 1; Start-Process \"C:\\\\Study\\\\Myprojects\\\\claudeprojects\\\\AImodels4finance\\\\lessons\\\\0013-ccr-cva-pfe.html\"; Start-Sleep -Seconds 1; Start-Process \"C:\\\\Study\\\\Myprojects\\\\claudeprojects\\\\AImodels4finance\\\\lessons\\\\0014-irrbb.html\")",
-      "WebSearch"
+      "WebSearch",
+      "PowerShell(Start-Process \"C:\\\\Study\\\\Myprojects\\\\claudeprojects\\\\AImodels4finance\\\\index.html\")"
     ]
   }
 }
