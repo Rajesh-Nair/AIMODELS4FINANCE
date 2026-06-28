@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 22: Cyber Risk Models</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<div class="page">
+  <div class="lesson-meta">Lesson 22 · Operational &amp; Cyber Risk</div>
+  <h1>Cyber Risk Models</h1>
+  <p class="subtitle">From qualitative risk registers to quantitative cyber loss distributions — why cyber is the hardest operational risk to model, and how ML is helping.</p>
+
+  <h2>1. Cyber risk in the financial risk taxonomy</h2>
+  <p>Cyber risk sits within <strong>operational risk</strong> (Basel defines op risk as "risk of loss from inadequate or failed internal processes, people, and systems, or from external events"). It has become systemically important: the IMF estimated in 2024 that cyber attacks on financial institutions caused over $12bn in direct losses in the prior decade, with indirect costs (reputational, regulatory) far larger.</p>
+  <p>What makes cyber risk distinctive as a modelling problem:</p>
+  <ul>
+    <li><strong>Data scarcity:</strong> cyber loss events are rare; firms rarely disclose full loss quantum; few cyber events have occurred at the extreme tail</li>
+    <li><strong>Adversarial nature:</strong> unlike credit or market risk, an attacker adapts to defences — the loss frequency and severity distribution shifts as the threat landscape evolves</li>
+    <li><strong>Correlation:</strong> a single successful attack (e.g., a zero-day on widely-used banking software) can affect multiple institutions simultaneously — systemic correlation risk</li>
+    <li><strong>Fat tails:</strong> the largest cyber events dwarf typical losses; the distribution is extremely heavy-tailed</li>
+  </ul>
+
+  <h2>2. Loss Distribution Approach (LDA) for cyber risk</h2>
+  <p>The classical actuarial tool for operational risk is the <strong>Loss Distribution Approach</strong>, which separately models loss frequency and severity, then computes the aggregate loss distribution by Monte Carlo convolution:</p>
+  <pre>N ~ Poisson(λ) or Negative Binomial    [cyber event frequency per year]
+X_i ~ LogNormal(μ, σ) or Pareto(α)     [individual cyber event severity]
+
+Aggregate annual loss: S = Σᵢ₌₁ᴺ Xᵢ
+
+VaR(99.9%) of S → Op Risk / Cyber Capital requirement</pre>
+  <p>The critical parameters are λ (attack frequency) and the severity distribution. For cyber: severity is Pareto-like (extremely fat tail) and λ is institution-specific, varying with security posture, industry sector, and firm size.</p>
+  <p><strong>External data supplementation:</strong> Because own-firm cyber loss history is sparse, LDA calibration relies on industry databases (ORX, Advisen CyberAwareness, CISSM) supplemented by scenario analysis. ML improves frequency estimation by incorporating threat intelligence feeds, security control effectiveness scores, and attacker activity levels.</p>
+
+  <h2>3. The FAIR framework for cyber risk quantification</h2>
+  <p><strong>FAIR (Factor Analysis of Information Risk)</strong> is an alternative to LDA that decomposes cyber loss into a causal chain:</p>
+  <pre>Risk = f(Threat Event Frequency, Vulnerability, Loss Event Frequency,
+         Loss Magnitude)
+
+Where:
+  Threat Event Frequency = how often does a threat actor attempt an attack?
+  Vulnerability         = given an attempt, probability of success?
+  Loss Magnitude        = if successful, what is the financial impact?
+
+FAIR uses Monte Carlo with probability distributions on each factor
+→ outputs a loss exceedance curve</pre>
+  <p>ML integration with FAIR: NLP on threat intelligence reports estimates threat event frequency by attacker type; ML on vulnerability scan data estimates vulnerability by system; historical incident data trains the loss magnitude distribution. FAIR provides a more explainable causal structure than pure LDA — useful for communicating cyber risk to boards and regulators.</p>
+
+  <h2>4. Scenario analysis for extreme cyber events</h2>
+  <p>Tail cyber events — a coordinated attack on the financial sector, ransomware encrypting core banking systems, a SWIFT network compromise — are too rare to estimate from loss history. Scenario analysis fills the gap:</p>
+  <ul>
+    <li><strong>CBEST (UK) / TIBER-EU:</strong> regulator-mandated threat intelligence-led penetration testing. The bank simulates a real attack by an intelligence-grade adversary; the results inform the realistic maximum loss scenario.</li>
+    <li><strong>Tabletop exercises:</strong> structured scenarios (data breach, cloud provider outage, ransomware) used to estimate operational response time and cost.</li>
+    <li><strong>DORA (EU Digital Operational Resilience Act, 2025):</strong> mandates financial institutions to test and document operational resilience against cyber and IT failures. Threat-led penetration testing (TLPT) is required for significant institutions.</li>
+  </ul>
+
+  <h2>5. ML for cyber risk detection and quantification</h2>
+  <table>
+    <thead><tr><th>ML application</th><th>Technique</th><th>Output</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Intrusion detection</strong></td><td>Autoencoder anomaly detection on network traffic; LSTM on event sequences</td><td>Alert when traffic pattern deviates from normal baseline</td></tr>
+      <tr><td><strong>Threat intelligence scoring</strong></td><td>NLP on threat intelligence feeds (reports, dark web, CVE database)</td><td>Risk score per threat type; frequency estimate update for LDA</td></tr>
+      <tr><td><strong>Vulnerability prioritisation</strong></td><td>Gradient boosting on CVE attributes (exploitability, CVSS score, asset criticality)</td><td>Ranked vulnerability list for patching resource allocation</td></tr>
+      <tr><td><strong>Cyber loss estimation</strong></td><td>Regression on incident characteristics → financial impact</td><td>Expected and 95th percentile loss estimate per incident type</td></tr>
+      <tr><td><strong>Third-party cyber risk</strong></td><td>ML scoring of vendor security posture from external signals (security ratings, breach history)</td><td>Vendor risk score for procurement decisions and concentration limits</td></tr>
+    </tbody>
+  </table>
+
+  <h2>6. Cyber insurance capital under Solvency II / Basel</h2>
+  <p>Banks hold capital for operational risk (including cyber) under Basel III. The two approaches:</p>
+  <ul>
+    <li><strong>Standardised approach (SA):</strong> op risk capital = 12.5% × Bank's Business Indicator (a proxy for income size). Simple, no model. Cyber specifics not captured.</li>
+    <li><strong>Internal Model / AMA (Advanced Measurement Approach — now discontinued in Basel IV but preserved in US/UK for some banks):</strong> LDA or scenario-based model. More risk-sensitive but subject to full MRM governance and regulatory approval.</li>
+  </ul>
+  <p>Cyber insurance policies (first-party and third-party) transfer cyber risk to the insurance market. ML pricing of cyber insurance policies uses the same LDA/FAIR frameworks — the insurer needs to estimate the loss distribution for the policyholder's specific risk profile.</p>
+
+  <div class="callout risk">
+    <div class="callout-label">DORA and model governance for cyber</div>
+    The EU Digital Operational Resilience Act (DORA, effective January 2025) requires financial institutions to demonstrate that their ICT systems — including models and model infrastructure — are resilient against cyber and IT disruption. This creates a new governance dimension for ML models: the model deployment infrastructure (cloud VMs, ML serving endpoints, data pipelines) must be included in the DORA operational resilience testing scope. A model that is mathematically sound but deployed on unpatched infrastructure fails DORA requirements.
+  </div>
+
+  <hr>
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+    <div class="question">
+      <p>1. Why does external cyber loss data (from industry databases like ORX) produce uncertain LDA calibrations even when large datasets are available?</p>
+      <div class="options">
+        <button class="option" data-correct="false">ORX data is only available for operational risk losses above £1bn, making it too sparse</button>
+        <button class="option" data-correct="true">External data has reporting and survivorship biases — firms underreport losses, and the threat landscape shifts so that historical loss distributions may not reflect current risk; the adversarial nature of cyber means past distributions shift as defences and attacks evolve</button>
+        <button class="option" data-correct="false">Industry databases are subject to GDPR restrictions, making access unreliable</button>
+        <button class="option" data-correct="false">LDA is mathematically inappropriate for cyber losses, so the underlying data quality is irrelevant</button>
+      </div>
+      <div class="feedback good">Correct. External cyber data has three structural problems: (1) underreporting — firms disclose the minimum required, so loss data is negatively biased; (2) survivorship bias — catastrophic losses may cause firm failure, removing those events from the database; (3) non-stationarity — a five-year-old loss distribution does not reflect today's attacker capabilities, toolkits, or target selection. ML threat intelligence models help address (3) by providing near-real-time frequency estimates, but (1) and (2) remain inherent limitations of any data-based approach.</div>
+      <div class="feedback bad">Cyber data problems compound: firms disclose the minimum required by regulation, so the external database underestimates true loss frequency and quantum. Attacks that cause firm failure don't add to the database — survivorship bias tilts toward survivable events. Most critically, the cyber threat landscape in 2019 is different from 2024 — ransomware tactics, zero-days, and AI-assisted attacks evolve faster than a historical loss dataset can capture. These three biases mean external data is a starting point, not a reliable tail estimator.</div>
+    </div>
+    <div class="question">
+      <p>2. In the FAIR model, what is the distinction between "threat event frequency" and "loss event frequency"?</p>
+      <div class="options">
+        <button class="option" data-correct="false">They are the same thing — every threat event causes a loss event by definition</button>
+        <button class="option" data-correct="true">Threat event frequency counts all attack attempts; loss event frequency is the subset that succeed — the difference is the vulnerability (probability of breach given an attempt)</button>
+        <button class="option" data-correct="false">Threat event frequency is measured annually; loss event frequency is measured per quarter</button>
+        <button class="option" data-correct="false">Threat events include failed attacks; loss events include only losses above a regulatory threshold</button>
+      </div>
+      <div class="feedback good">Correct. FAIR decomposes frequency explicitly: many attack attempts occur; most are blocked by defences. Loss event frequency = threat event frequency × (1 − probability of successfully blocking). This decomposition is valuable because it separates the attacker's behaviour (threat frequency) from the defender's effectiveness (vulnerability). ML can estimate each separately: NLP on threat intel for frequency, ML on security control data for vulnerability. Improving defences reduces loss event frequency without changing how often attackers try.</div>
+      <div class="feedback bad">FAIR's causal structure is: attacks happen (threat event frequency) → some succeed given the institution's defences (vulnerability) → a successful attack causes losses (loss magnitude). Loss event frequency = threat event frequency × P(success | attempt). This decomposition matters practically: a bank facing 1,000 attacks per day with 0.01% success rate has the same loss event frequency as one facing 100 attacks with 0.1% success. But the management response is entirely different — one is about reducing attack surface, the other about improving defences.</div>
+    </div>
+    <div class="question">
+      <p>3. How does DORA expand the scope of operational resilience testing beyond what Basel III op risk capital alone requires?</p>
+      <div class="options">
+        <button class="option" data-correct="false">DORA requires higher capital buffers specifically for cyber risk than Basel III</button>
+        <button class="option" data-correct="true">DORA requires threat-led penetration testing (TLPT) of live production systems and operational resilience of ICT infrastructure — not just capital adequacy against modelled losses</button>
+        <button class="option" data-correct="false">DORA replaces Basel III op risk capital requirements for EU banks entirely</button>
+        <button class="option" data-correct="false">DORA applies only to data centres, not to financial models or trading systems</button>
+      </div>
+      <div class="feedback good">Correct. Basel III op risk capital (and LDA models) quantifies the capital needed if cyber losses occur. DORA takes a complementary approach: it requires firms to demonstrate they can prevent or recover from cyber events — through TLPT testing, ICT resilience frameworks, third-party risk management, and incident reporting. These are operational controls requirements, not capital adequacy requirements. Both are needed: capital for when things go wrong; operational resilience to reduce how often and how severely things go wrong.</div>
+      <div class="feedback bad">Basel III op risk capital is a financial buffer: hold enough capital to absorb cyber losses at the 99.9% confidence level. DORA is about preventing or rapidly recovering from those losses: threat-led penetration testing (TLPT) proves defences work against sophisticated adversaries; ICT resilience requirements prove the firm can recover critical services within defined timeframes. These are complementary — DORA reduces λ (attack success frequency) in your LDA; Basel capital ensures the firm survives if λ outcomes materialise.</div>
+    </div>
+    <div class="quiz-score"></div>
+  </div>
+  <hr>
+  <h2>Primary source to read next</h2>
+  <p><strong>DORA — EU Digital Operational Resilience Act (Regulation EU 2022/2554)</strong><br>
+  <a href="https://www.eba.europa.eu/regulation-and-policy/digital-operational-resilience" target="_blank">eba.europa.eu — DORA resources</a></p>
+  <p>The EBA's DORA resource page covers the regulatory technical standards (RTS) on ICT risk, TLPT requirements, and third-party risk. Pair with the FAIR Institute's white papers for cyber quantification methodology.</p>
+  <h2>What comes next</h2>
+  <ul>
+    <li><a href="0021-pension-risk.html">← Lesson 21: Pension Risk Models</a></li>
+    <li><a href="0023-recovery-asset-models.html">Lesson 23: Recovery Asset Models →</a></li>
+  </ul>
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — LDA vs FAIR, DORA TLPT requirements, or cyber insurance pricing are all worth discussing further.</p>
+    <p style="margin-top:.5rem;">Lesson 22 · <em>AI/ML in Banking &amp; Finance</em> · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

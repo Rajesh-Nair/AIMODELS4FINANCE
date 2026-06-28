@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 2: LGD Estimation — The Bimodal Problem</title>
+<link rel="stylesheet" href="../assets/styles.css">
+<style>
+  /* Lesson-specific: distribution diagram */
+  .dist-container {
+    background: #f5f5f0;
+    border: 1px solid #d4d4d4;
+    border-radius: 6px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+  }
+  .dist-container canvas {
+    display: block;
+    margin: 0 auto;
+  }
+  .dist-label {
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    color: var(--muted);
+    text-align: center;
+    margin-top: 0.5rem;
+  }
+
+  /* Two-stage model diagram */
+  .pipeline {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 1.5rem 0;
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+    overflow-x: auto;
+  }
+  .pipe-box {
+    background: white;
+    border: 1px solid #d4d4d4;
+    border-radius: 4px;
+    padding: 0.6rem 0.9rem;
+    text-align: center;
+    min-width: 130px;
+    line-height: 1.35;
+  }
+  .pipe-box strong { display: block; font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.2rem; }
+  .pipe-box.highlight { background: var(--accent-light); border-color: var(--accent); }
+  .pipe-box.warn { background: var(--warn-light); border-color: var(--warn); }
+  .pipe-arrow {
+    font-size: 1.2rem;
+    color: var(--muted);
+    padding: 0 0.4rem;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="lesson-meta">Lesson 02 · Credit Risk</div>
+  <h1>LGD Estimation: The Bimodal Problem</h1>
+  <p class="subtitle">
+    Why loss severity is harder to model than default probability — and how ML navigates a uniquely awkward distribution.
+  </p>
+
+  <!-- ── 1. What is LGD ── -->
+  <h2>1. What LGD is and how it connects to capital</h2>
+
+  <p>
+    Recall the expected loss formula from Lesson 1: <strong>EL = PD × LGD × EAD</strong>. LGD is the
+    fraction of the exposure the bank actually loses, conditional on default occurring.
+  </p>
+
+  <p>
+    Formally:
+  </p>
+
+  <pre>LGD = 1 − Recovery Rate
+
+Recovery Rate = Σ (discounted recovery cash flows) / EAD at default</pre>
+
+  <p>
+    The discounting matters: a partial repayment received three years into a workout is worth less than
+    one received immediately. Basel requires recoveries to be discounted at the bank's effective cost
+    of collecting the debt — typically using a hurdle rate of around 15% for workout cases.
+  </p>
+
+  <table>
+    <thead>
+      <tr><th>LGD value</th><th>Interpretation</th><th>Typical scenario</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>0%</td><td>Full recovery — no loss</td><td>Well-collateralised mortgage; borrower cures and repays</td></tr>
+      <tr><td>45%</td><td>Basel regulatory floor for unsecured senior corporates</td><td>Unsecured corporate with partial recovery via liquidation</td></tr>
+      <tr><td>75%</td><td>Severe loss</td><td>Junior/subordinated debt, distressed assets</td></tr>
+      <tr><td>100%</td><td>Total loss</td><td>Unsecured consumer credit in personal bankruptcy with no assets</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout info">
+    <div class="callout-label">Why LGD matters more than it looks</div>
+    In retail portfolios, PD gets most of the modelling attention — but LGD variation can be enormous.
+    A bank with a large unsecured personal loans book might see LGD range from 40% to 90% across
+    borrower segments. Getting LGD wrong by 20pp on a £2bn portfolio = £400m of miscalculated RWA.
+  </div>
+
+  <!-- ── 2. The Distribution Problem ── -->
+  <h2>2. The bimodal distribution: why standard regression breaks</h2>
+
+  <p>
+    LGD has a bounded range of [0, 1]. Unlike PD, which is estimated but often close to a symmetric
+    distribution in log-odds space, observed LGDs cluster heavily at the extremes:
+  </p>
+
+  <div class="dist-container">
+    <canvas id="lgdChart" width="640" height="200"></canvas>
+    <p class="dist-label">Stylised LGD distribution for a typical retail unsecured portfolio — mass at 0 (cures) and near 1 (total losses), thin middle.</p>
+  </div>
+
+  <p>
+    This happens because defaulted accounts tend to resolve in one of two ways:
+  </p>
+
+  <ul>
+    <li><strong>Cure:</strong> The borrower catches up on arrears and the account is brought back to performing. LGD ≈ 0 (the bank collects full cost of funds via interest). Around 20–40% of retail defaults cure in the first year.</li>
+    <li><strong>Workout/loss:</strong> The account enters formal recovery. In unsecured consumer credit with limited assets, losses are frequently 60–100%.</li>
+  </ul>
+
+  <p>
+    The practical consequence: a linear regression trained on this distribution predicts values in the
+    middle of the range (e.g., 0.45–0.55) where very few actual observations land. The model minimises
+    squared error globally but is <em>wrong for almost every individual case</em>.
+  </p>
+
+  <!-- ── 3. ML Approaches ── -->
+  <h2>3. ML approaches that handle bimodality</h2>
+
+  <h3>Approach 1: Two-stage model (industry standard)</h3>
+
+  <p>
+    The most widely adopted ML approach decomposes the problem into two sub-models with different targets:
+  </p>
+
+  <div class="pipeline">
+    <div class="pipe-box">
+      <strong>All defaults</strong>
+      Defaulted accounts with completed recovery
+    </div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-box highlight">
+      <strong>Stage 1: Classifier</strong>
+      P(cure) vs P(loss)<br>XGBoost / RF
+    </div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-box warn">
+      <strong>Stage 2: Regressor</strong>
+      Severity | loss occurred<br>XGBoost / RF / Beta reg
+    </div>
+    <div class="pipe-arrow">→</div>
+    <div class="pipe-box">
+      <strong>Final LGD</strong>
+      P(loss) × severity<br>+ 0 × P(cure)
+    </div>
+  </div>
+
+  <p>
+    Stage 1 handles the bimodality by treating the cure/loss split as a classification problem.
+    Stage 2 estimates loss severity only within the loss population, where the distribution is less extreme.
+    The outputs are combined:
+  </p>
+
+  <pre>LGD = P(loss|default) × E[severity | loss occurred]
+    = (1 − P(cure)) × severity_estimate</pre>
+
+  <div class="callout insight">
+    <div class="callout-label">Model risk implication</div>
+    A two-stage model has two error sources. Validation must evaluate Stage 1 and Stage 2 independently
+    before assessing the combined output. A model that predicts cure probability well but severity poorly
+    will produce a plausible Gini on the combined output while systematically mispricing individual segments.
+  </div>
+
+  <h3>Approach 2: Beta regression</h3>
+
+  <p>
+    Beta regression uses the Beta distribution as its error structure. The Beta is defined on (0, 1),
+    has flexible shape (U-shaped, J-shaped, or symmetric), and directly models proportions. It avoids
+    the boundary prediction problem of linear regression and is interpretable.
+  </p>
+
+  <p>
+    The limitation: it cannot assign mass exactly at 0 or 1 — but observed LGDs are often exactly 0
+    (cure) or exactly 1 (total write-off). A <strong>zero-one inflated Beta regression</strong> adds
+    point masses at the boundaries, but becomes complex to validate.
+  </p>
+
+  <h3>Approach 3: XGBoost / Random Forest (direct)</h3>
+
+  <p>
+    Tree-based models can approximate bimodal distributions via deep leaf splits, but they do this
+    indirectly. With sufficient depth and data, they tend to perform well on discrimination (Gini, MAE),
+    but their predictions will still be pulled toward the centre compared to the two-stage approach.
+    In practice, many banks use XGBoost as the Stage 2 regressor inside a two-stage architecture.
+  </p>
+
+  <!-- ── 4. Features ── -->
+  <h2>4. What drives LGD: key feature categories</h2>
+
+  <p>
+    LGD is not primarily about the borrower's creditworthiness (that drives PD). It is about
+    <strong>how much can be recovered</strong> — which depends on collateral, deal structure, and the
+    resolution process.
+  </p>
+
+  <table>
+    <thead>
+      <tr><th>Feature category</th><th>Examples</th><th>Mechanism</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Collateral</strong></td>
+        <td>Loan-to-Value (LTV), collateral type (property, equipment, unsecured), collateral age</td>
+        <td>Higher quality / lower LTV collateral → higher recovery → lower LGD. Most important single driver for secured lending.</td>
+      </tr>
+      <tr>
+        <td><strong>Seniority &amp; structure</strong></td>
+        <td>Senior secured &gt; senior unsecured &gt; mezzanine &gt; equity. Covenant package.</td>
+        <td>Senior secured creditors are paid first in liquidation. Seniority cliff effect: crossing from senior unsecured to subordinated can double LGD.</td>
+      </tr>
+      <tr>
+        <td><strong>Borrower characteristics</strong></td>
+        <td>Industry sector, company size, jurisdiction, business model (asset-heavy vs asset-light)</td>
+        <td>Asset-heavy industries (real estate, manufacturing) produce higher recoveries than service/tech firms with few tangible assets.</td>
+      </tr>
+      <tr>
+        <td><strong>Resolution process</strong></td>
+        <td>Time in workout, resolution method (sale, restructuring, write-off), jurisdiction's insolvency regime</td>
+        <td>UK administration vs US Chapter 11 vs German Insolvenzordnung produce systematically different LGDs. Time to resolution is inversely correlated with recovery — longer = more costs eroding recovery.</td>
+      </tr>
+      <tr>
+        <td><strong>Macro / systemic</strong></td>
+        <td>Property price index, unemployment rate, credit market conditions, industry stress index</td>
+        <td>Recoveries are deeply cyclical. In downturns, collateral values fall simultaneously with defaults, amplifying losses. This is the core of the downturn LGD requirement.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── 5. Downturn LGD ── -->
+  <h2>5. The downturn LGD requirement</h2>
+
+  <p>
+    Basel mandates that the LGD used for capital calculation reflects losses during a period of
+    economic stress — not the long-run average. This is the <strong>downturn LGD</strong> concept.
+    The intuition: defaults and low recoveries <em>co-occur</em> during recessions, so using average
+    LGD systematically underestimates losses when the bank most needs capital.
+  </p>
+
+  <div class="callout risk">
+    <div class="callout-label">The correlation problem</div>
+    If PD rises in a recession AND LGD rises simultaneously (because collateral values fall), then
+    EL = PD × LGD is not additive of two independent risks — it is amplified. The 2008 crisis made
+    this vivid: US mortgage LGDs that averaged 20% in benign periods reached 60%+ in 2009–2011 as
+    house prices fell 30–40%. Any model trained only on 2002–2007 data was catastrophically wrong.
+  </div>
+
+  <p>
+    The standard approach to downturn LGD:
+  </p>
+
+  <ol>
+    <li><strong>Identify the reference period</strong> — typically the period in your observed data with highest default rates or lowest recovery rates (e.g., 2008–2010 for most developed markets)</li>
+    <li><strong>Calculate conditional LGD</strong> — estimate LGD using only data from the reference period, or condition on macro variables that define the downturn</li>
+    <li><strong>Apply add-on or override</strong> — if the ML model produces a through-the-cycle (TTC) LGD, apply a regulatory add-on or a conservative scalar to reach the downturn floor</li>
+    <li><strong>Document the adjustment</strong> — the methodology for the downturn add-on is itself model risk governed and must be independently validated</li>
+  </ol>
+
+  <div class="callout info">
+    <div class="callout-label">ML-specific challenge</div>
+    ML models trained on rich feature sets may learn macro conditions implicitly (e.g., "LTV=80% in
+    2009 → high LGD"), making the downturn conditioning harder to isolate. Validators must verify that
+    the model does not inadvertently produce low LGD estimates for stressed scenarios where macro
+    features were not observed in training. Partial Dependence Plots (PDPs) on macro features are the
+    standard diagnostic.
+  </div>
+
+  <!-- ── 6. Data Challenges ── -->
+  <h2>6. The data challenges unique to LGD</h2>
+
+  <p>
+    LGD modelling has data problems that PD modelling does not:
+  </p>
+
+  <ul>
+    <li>
+      <strong>Sparsity:</strong> Defaults are rare by design (good lending!). A bank with a 1% default
+      rate on 100,000 accounts has 1,000 defaults per year. Of those, recoveries from large accounts
+      can take 3–7 years to complete. A 10-year data window might produce only 5,000–8,000
+      <em>completed</em> recoveries — too few for a complex ML model on a segmented portfolio.
+    </li>
+    <li>
+      <strong>Censoring:</strong> Accounts still in recovery at the model development date are right-censored
+      — you know the recovery so far, but not the final LGD. Including these inflates the dataset but
+      introduces bias. Excluding them creates survivorship bias (slow-resolving cases with low recoveries
+      are under-represented). Survival models or Tobit regression are sometimes used to handle this.
+    </li>
+    <li>
+      <strong>Vintage effects:</strong> Lending standards, product mix, and economic conditions change
+      over time. Data from 10 years ago may represent a fundamentally different portfolio. ML models
+      must be validated for concept drift across vintages.
+    </li>
+  </ul>
+
+  <!-- ── 7. Evaluation ── -->
+  <h2>7. How LGD models are evaluated</h2>
+
+  <table>
+    <thead>
+      <tr><th>Metric</th><th>What it measures</th><th>LGD-specific note</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>MAE / RMSE</strong></td>
+        <td>Mean Absolute / Root Mean Squared Error against realised LGDs</td>
+        <td>RMSE penalises large errors more — important because large misses on high-LGD accounts drive capital errors</td>
+      </tr>
+      <tr>
+        <td><strong>Gini / AUC</strong></td>
+        <td>Discrimination between high- and low-LGD accounts</td>
+        <td>Lower Ginis than PD models are typical (40–60%) — LGD is inherently noisier</td>
+      </tr>
+      <tr>
+        <td><strong>Bias test</strong></td>
+        <td>Mean predicted LGD vs mean realised LGD, in aggregate and by segment</td>
+        <td>Regulators focus on segment-level bias, not just portfolio average. A model unbiased in aggregate can still systematically underestimate a risky segment.</td>
+      </tr>
+      <tr>
+        <td><strong>Downturn test</strong></td>
+        <td>Does the model produce LGD estimates consistent with observed downturn periods?</td>
+        <td>Often done via scenario analysis: apply 2008–2010 macro inputs and verify predictions are credible</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <!-- ── Quiz ── -->
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+
+    <div class="question">
+      <p>1. A mortgage defaults with EAD = £200,000. The bank recovers £140,000 after discounting. What is the LGD?</p>
+      <div class="options">
+        <button class="option" data-correct="false">30%</button>
+        <button class="option" data-correct="true">30%</button>
+        <button class="option" data-correct="false">70%</button>
+        <button class="option" data-correct="false">140%</button>
+      </div>
+      <div class="feedback good">Correct. LGD = 1 − Recovery Rate = 1 − (140,000 / 200,000) = 1 − 0.70 = 0.30 = 30%.</div>
+      <div class="feedback bad">LGD = 1 − (recovered / EAD) = 1 − (140,000 / 200,000) = 1 − 0.70 = 30%. The bank loses 30% of the exposure.</div>
+    </div>
+
+    <div class="question">
+      <p>2. Why does a standard linear regression model perform poorly as a direct LGD estimator?</p>
+      <div class="options">
+        <button class="option" data-correct="false">LGD data is too large to fit in memory</button>
+        <button class="option" data-correct="false">Linear regression cannot handle continuous targets</button>
+        <button class="option" data-correct="true">Observed LGDs cluster at 0 and 1; linear regression predicts the sparsely-populated middle</button>
+        <button class="option" data-correct="false">Regulators prohibit linear models for LGD</button>
+      </div>
+      <div class="feedback good">Correct. The bimodal distribution means most observations are near 0 (cures) or near 1 (total losses). A linear model minimises squared error globally and ends up predicting the middle — wrong for nearly every individual account.</div>
+      <div class="feedback bad">The problem is distributional. LGDs cluster at extremes (0 = cure, near 1 = total loss). A linear model minimises global MSE and therefore predicts the low-density middle range. It is wrong for almost every individual prediction even though its average error is small.</div>
+    </div>
+
+    <div class="question">
+      <p>3. In a two-stage LGD model, what does Stage 1 predict?</p>
+      <div class="options">
+        <button class="option" data-correct="false">The exact LGD value for each defaulted account</button>
+        <button class="option" data-correct="true">Whether the account will cure (no loss) or enter workout (loss occurs)</button>
+        <button class="option" data-correct="false">The time-to-recovery for each account</button>
+        <button class="option" data-correct="false">The collateral value at point of default</button>
+      </div>
+      <div class="feedback good">Correct. Stage 1 is a binary classifier that separates cures from losses. It handles the bimodality by routing accounts before severity estimation. Stage 2 then predicts severity only within the loss population.</div>
+      <div class="feedback bad">Stage 1 handles the bimodality by classifying accounts as cure vs workout. Only Stage 2 predicts the magnitude of loss — and only for accounts classified as workout. Combining the two: LGD = P(loss) × E[severity | loss].</div>
+    </div>
+
+    <div class="question">
+      <p>4. Basel requires "downturn LGD" for capital calculation. What is the core reason?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Downturn LGDs are easier to estimate with ML</button>
+        <button class="option" data-correct="false">Average LGDs tend to be zero during benign periods</button>
+        <button class="option" data-correct="true">PD and LGD rise together in recessions, so average LGD understates stressed losses</button>
+        <button class="option" data-correct="false">Regulatory floors always exceed average LGDs</button>
+      </div>
+      <div class="feedback good">Correct. PD-LGD correlation is the key insight. When defaults spike in a recession, recoveries fall simultaneously (collateral values drop, buyers scarce). Using average LGD ignores this amplifying effect — capital would be systematically too low exactly when losses are highest.</div>
+      <div class="feedback bad">The issue is PD-LGD correlation. In a recession, both PD and LGD rise together — collateral values fall just as more borrowers default. Average LGD from benign periods underestimates this co-movement. Basel's downturn LGD captures losses under the same stressed conditions that produce elevated PDs.</div>
+    </div>
+
+    <div class="question">
+      <p>5. A bank has 10 years of default data but many recovery processes are still open at the model development date. What statistical problem does this create?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Multicollinearity between features</button>
+        <button class="option" data-correct="false">Class imbalance between defaults and non-defaults</button>
+        <button class="option" data-correct="true">Right-censoring — final LGDs are unknown for in-progress recoveries</button>
+        <button class="option" data-correct="false">Overfitting due to excessive training data</button>
+      </div>
+      <div class="feedback good">Correct. Right-censoring: you observe partial recovery data for in-progress cases but not the final LGD. Excluding them creates selection bias (slow-resolving, higher-LGD cases are dropped). Including them naively introduces downward bias. Survival analysis or Tobit regression are the standard treatments.</div>
+      <div class="feedback bad">This is right-censoring. For accounts still in recovery, you only know the LGDs collected so far — not the final outcome. Excluding these cases biases the sample toward faster-resolving (often lower-LGD) cases. Survival models or Tobit regression explicitly model the censoring rather than ignoring it.</div>
+    </div>
+
+    <div class="quiz-score"></div>
+  </div>
+
+  <hr>
+
+  <!-- ── Primary Source ── -->
+  <h2>Primary source to read next</h2>
+
+  <p>
+    <strong>Baesens, Roesch &amp; Scheule — <em>Credit Risk Analytics</em>, Chapter 5: LGD Modelling</strong><br>
+    <a href="https://www.wiley.com/en-us/Credit+Risk+Analytics-p-9781119143987" target="_blank">wiley.com — Credit Risk Analytics</a>
+  </p>
+  <p>
+    This is the closest thing to a textbook written specifically for ML practitioners in credit risk.
+    Chapter 5 covers the bimodal problem, the two-stage approach, beta regression, and validation
+    methods in depth. The companion dataset (available on the book's website) lets you apply these
+    techniques directly.
+  </p>
+
+  <!-- ── Next ── -->
+  <h2>What comes next</h2>
+  <p>
+    The next lesson covers <strong>EAD Forecasting</strong> — predicting how much exposure the bank
+    faces <em>at</em> the moment of default, with particular focus on revolving facilities (credit cards,
+    overdrafts) where borrowers tend to draw down heavily just before default.
+  </p>
+
+  <ul>
+    <li><a href="0001-credit-risk-pd-modelling.html">← Lesson 1: PD Modelling</a></li>
+    <li><a href="0003-ead-forecasting.html">Lesson 3: EAD Forecasting →</a> (coming next)</li>
+    <li><a href="../reference/credit-risk-glossary.html">Reference: Credit Risk Glossary</a></li>
+  </ul>
+
+  <div class="lesson-footer">
+    <p>
+      Ask your teacher anything — type in the chat to go deeper, challenge any claim, or ask for
+      examples. The explanation of downturn LGD, the two-stage model, or the censoring problem are
+      all worth interrogating further.
+    </p>
+    <p style="margin-top: 0.5rem;">
+      Lesson 2 of the <em>AI/ML in Banking &amp; Finance</em> course ·
+      <a href="../RESOURCES.md">Resources</a>
+    </p>
+  </div>
+
+</div>
+
+<script>
+/* Inline LGD distribution diagram */
+(function () {
+  var canvas = document.getElementById('lgdChart');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+  var pad = { left: 50, right: 20, top: 20, bottom: 40 };
+  var chartW = W - pad.left - pad.right;
+  var chartH = H - pad.top - pad.bottom;
+
+  /* Stylised bimodal density — high at 0, low in middle, moderate at 1 */
+  function density(x) {
+    var cure  = 3.5 * Math.exp(-Math.pow(x - 0.0, 2) / (2 * 0.025));
+    var total = 1.8 * Math.exp(-Math.pow(x - 1.0, 2) / (2 * 0.04));
+    var mid   = 0.3 * Math.exp(-Math.pow(x - 0.50, 2) / (2 * 0.07));
+    return cure + total + mid;
+  }
+
+  var steps = 200;
+  var points = [];
+  var maxD = 0;
+  for (var i = 0; i <= steps; i++) {
+    var x = i / steps;
+    var d = density(x);
+    if (d > maxD) maxD = d;
+    points.push({ x: x, d: d });
+  }
+
+  /* Background */
+  ctx.fillStyle = '#f5f5f0';
+  ctx.fillRect(0, 0, W, H);
+
+  /* Axes */
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, pad.top);
+  ctx.lineTo(pad.left, pad.top + chartH);
+  ctx.lineTo(pad.left + chartW, pad.top + chartH);
+  ctx.stroke();
+
+  /* X axis labels */
+  ctx.fillStyle = '#555';
+  ctx.font = '11px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ['0%', '25%', '50%', '75%', '100%'].forEach(function (label, i) {
+    var xPx = pad.left + (i / 4) * chartW;
+    ctx.fillText(label, xPx, pad.top + chartH + 16);
+  });
+  ctx.textAlign = 'left';
+  ctx.fillText('LGD', pad.left + chartW / 2 - 10, pad.top + chartH + 32);
+
+  /* Y axis label */
+  ctx.save();
+  ctx.translate(14, pad.top + chartH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center';
+  ctx.fillText('Frequency', 0, 0);
+  ctx.restore();
+
+  /* Filled area */
+  ctx.beginPath();
+  points.forEach(function (p, i) {
+    var xPx = pad.left + p.x * chartW;
+    var yPx = pad.top + chartH - (p.d / maxD) * chartH * 0.88;
+    if (i === 0) ctx.moveTo(xPx, yPx);
+    else ctx.lineTo(xPx, yPx);
+  });
+  ctx.lineTo(pad.left + chartW, pad.top + chartH);
+  ctx.lineTo(pad.left, pad.top + chartH);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(26, 77, 143, 0.15)';
+  ctx.fill();
+  ctx.strokeStyle = '#1a4d8f';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  points.forEach(function (p, i) {
+    var xPx = pad.left + p.x * chartW;
+    var yPx = pad.top + chartH - (p.d / maxD) * chartH * 0.88;
+    if (i === 0) ctx.moveTo(xPx, yPx);
+    else ctx.lineTo(xPx, yPx);
+  });
+  ctx.stroke();
+
+  /* Annotations */
+  ctx.fillStyle = '#1a4d8f';
+  ctx.font = 'bold 11px system-ui, sans-serif';
+  ctx.fillText('Cures', pad.left + 4, pad.top + 28);
+  ctx.fillText('(LGD ≈ 0)', pad.left + 4, pad.top + 42);
+  ctx.textAlign = 'right';
+  ctx.fillText('Total losses', pad.left + chartW - 2, pad.top + 38);
+  ctx.fillText('(LGD ≈ 1)', pad.left + chartW - 2, pad.top + 52);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#888';
+  ctx.font = '10px system-ui, sans-serif';
+  ctx.fillText('Sparse middle', pad.left + chartW * 0.5, pad.top + chartH * 0.48);
+})();
+</script>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

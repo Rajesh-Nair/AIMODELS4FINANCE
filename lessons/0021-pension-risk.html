@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 21: Pension Risk Models</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<div class="page">
+  <div class="lesson-meta">Lesson 21 · Pension &amp; ALM Risk</div>
+  <h1>Pension Risk Models</h1>
+  <p class="subtitle">Defined benefit pension funds, liability-driven investment, longevity modelling, and the 2022 UK LDI crisis — where interest rate risk and collateral management meet in a systemically important way.</p>
+
+  <h2>1. Defined Benefit vs Defined Contribution</h2>
+  <p>Banks and large corporates sponsor <strong>pension funds</strong> that sit on the balance sheet as either assets (scheme surplus) or liabilities (pension deficit). The model risk profile differs by scheme type:</p>
+  <table>
+    <thead><tr><th></th><th>Defined Benefit (DB)</th><th>Defined Contribution (DC)</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Promise</strong></td><td>Sponsor guarantees a specific benefit (e.g., 1/60th of final salary per year of service)</td><td>Sponsor contributes a fixed amount; member bears investment risk</td></tr>
+      <tr><td><strong>Balance sheet risk</strong></td><td>HIGH — deficit/surplus is the difference between asset value and liability value; both mark-to-market under IAS19/FRS102</td><td>LOW — sponsor exposure is the current contribution only</td></tr>
+      <tr><td><strong>Key risk</strong></td><td>Asset-liability mismatch, longevity risk, interest rate risk</td><td>Investment performance risk (borne by member)</td></tr>
+      <tr><td><strong>ML role</strong></td><td>Liability modelling, longevity prediction, ALM optimisation</td><td>Robo-advisory for member asset allocation (see Lesson 18)</td></tr>
+    </tbody>
+  </table>
+
+  <h2>2. The pension liability and IAS19</h2>
+  <p>Under <strong>IAS19</strong> (accounting for employee benefits), the DB pension liability is the <strong>Present Value of the Defined Benefit Obligation (PVDBO)</strong>:</p>
+  <pre>PVDBO = Σ [Projected benefit payment(t) × DF(t)]
+          t
+
+where DF(t) = discount factor using AA-rated corporate bond yield curve
+
+Pension deficit (balance sheet) = PVDBO − Fair value of plan assets</pre>
+  <p>The crucial sensitivity: the discount rate is tied to the AA corporate bond yield. When yields fall, PVDBO rises (liability goes up) while assets may not keep pace — widening the deficit. When yields rise sharply (as in 2022), PVDBO falls — narrowing or eliminating the deficit, but only if assets have not also fallen.</p>
+
+  <h2>3. Liability-Driven Investment (LDI)</h2>
+  <p><strong>LDI</strong> is the investment strategy of deliberately matching the interest rate and inflation sensitivity of pension assets to the pension liability — eliminating the exposure to rate changes on the funding level. If rates rise, both assets and liabilities fall by the same amount; the funding level is protected.</p>
+  <p>LDI is implemented through:</p>
+  <ul>
+    <li><strong>Gilts and index-linked gilts:</strong> long-duration bonds with cash flows matching projected benefit payments</li>
+    <li><strong>Interest rate swaps:</strong> receive-fixed swaps add duration synthetically without buying gilts outright</li>
+    <li><strong>Leveraged LDI:</strong> using swaps and repo allows a scheme to hedge more liability than it has in assets — amplifying the duration match but introducing collateral risk</li>
+  </ul>
+  <p>ML applications in LDI: dynamic duration matching (rebalancing strategy ML to minimise hedging cost), yield curve scenario generation for sensitivity analysis, and optimisation of the liability-matching portfolio under realistic transaction cost constraints.</p>
+
+  <h2>4. The 2022 UK LDI crisis</h2>
+  <p>In September 2022, the UK government's "mini-budget" triggered a sudden, extreme rise in gilt yields — 100+ basis points within days. This created a liquidity crisis for leveraged LDI pension funds:</p>
+  <ol>
+    <li>Leveraged LDI funds held interest rate swaps and repos. When gilt yields rose sharply, swap mark-to-market losses triggered <strong>margin calls</strong>.</li>
+    <li>Pension funds needed to post additional collateral immediately. Their collateral (mostly gilts) had also fallen in value.</li>
+    <li>To raise cash, funds were forced to sell gilts — into a falling market. This amplified the gilt sell-off, triggering more margin calls. A <strong>collateral spiral</strong>.</li>
+    <li>The Bank of England intervened with emergency gilt purchases to halt the spiral.</li>
+  </ol>
+  <div class="callout risk">
+    <div class="callout-label">Model risk lesson from 2022</div>
+    LDI collateral buffer models were calibrated on historical yield volatility — yield moves of 10–20bps per day. The September 2022 episode saw moves of 30–50bps per day. Models had not been stress-tested against these magnitudes. The lesson: tail stress testing must cover scenarios beyond historical maximum daily moves, particularly for leveraged strategies where margin calls create non-linear liquidity demands.
+  </div>
+
+  <h2>5. Longevity modelling for pension schemes</h2>
+  <p>A DB pension scheme's biggest long-term risk is <strong>longevity</strong>: if pensioners live longer than projected, more benefit payments are made than priced. Pension actuaries use the <strong>CMI model</strong> (Continuous Mortality Investigation, UK) to project mortality improvement trends — but recent mortality experience (COVID, long COVID, post-pandemic rebound) has made these projections highly uncertain.</p>
+  <p>ML approaches to pension longevity modelling:</p>
+  <ul>
+    <li><strong>Stochastic mortality models:</strong> Lee-Carter extended with Cairns-Blake-Dowd (CBD) for older ages, where pension schemes have most exposure. ML fits the stochastic components more flexibly than parametric constraints.</li>
+    <li><strong>Postcode-level individual mortality:</strong> ML models on demographics, health indicators, and socioeconomic factors predict individual pensioner longevity for <strong>longevity swaps</strong> pricing (the pension fund pays a fixed premium, the counterparty pays the actual benefit stream regardless of how long pensioners live — transferring longevity risk to an insurer).</li>
+    <li><strong>Cause-of-death modelling:</strong> XGBoost on cause-of-death data identifies which disease trends (cancer improvements, cardiovascular medicine) most drive aggregate mortality improvement — useful for scenario analysis of medical breakthrough risks.</li>
+  </ul>
+
+  <h2>6. Pensions and the Solvency Capital Requirement (SCR)</h2>
+  <p>UK insurance companies that take on longevity risk through annuity portfolios (which are comparable to DB pensions in their liability structure) hold capital against it under <strong>Solvency II / UK Insurance (Prudential Regime) Act 2023</strong>. The longevity SCR covers a 25% permanent increase in mortality improvement rates — a standardised shock. Banks with DB pension funds use ICAAP stress-tests to quantify pension deficit sensitivity under adverse longevity, rate, and equity scenarios.</p>
+
+  <hr>
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+    <div class="question">
+      <p>1. A DB pension scheme has PVDBO of £500m and plan assets of £420m. The fund then adopts a full LDI hedge. Gilt yields subsequently rise by 50bps. What happens to the pension deficit?</p>
+      <div class="options">
+        <button class="option" data-correct="false">The deficit widens — rising yields increase the cost of bonds the scheme must hold</button>
+        <button class="option" data-correct="true">The deficit is approximately unchanged — LDI means asset duration matches liability duration, so assets and liabilities fall proportionally when yields rise</button>
+        <button class="option" data-correct="false">The deficit narrows — rising yields automatically reduce pension liabilities without any hedging</button>
+        <button class="option" data-correct="false">The deficit disappears — rising yields always eliminate pension deficits</button>
+      </div>
+      <div class="feedback good">Correct. LDI purpose: match the interest rate sensitivity of assets to liabilities. When yields rise, the PVDBO falls (future cashflows discounted at a higher rate). With full LDI, the assets (duration-matched bonds and swaps) also fall by a similar amount. The funding level (assets/liabilities ratio) is approximately preserved. Without LDI, only the liability falls but a diversified growth portfolio (equities, alternatives) may not fall as much — or may even rise — creating an apparent improvement. But without LDI the exposure to future yield changes remains open.</div>
+      <div class="feedback bad">LDI is specifically designed to neutralise this. With the liability discounted at AA bond yields, and the LDI asset portfolio structured to have the same duration and inflation sensitivity as the PVDBO, a 50bp yield rise reduces both the PVDBO and the asset portfolio by approximately the same amount. Funding level is preserved. Without LDI, the PVDBO would fall while the growth asset portfolio might move in a different direction — creating unintended funding level changes.</div>
+    </div>
+    <div class="question">
+      <p>2. In the 2022 UK LDI crisis, leveraged LDI funds needed to sell gilts rapidly. Why did this worsen the crisis rather than simply raising cash?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Pension funds are legally prohibited from selling gilts in a rising yield environment</button>
+        <button class="option" data-correct="true">Mass gilt selling into an already-falling market pushed gilt prices down further, increasing margin calls and triggering a collateral spiral</button>
+        <button class="option" data-correct="false">Gilts cannot be sold on short notice due to settlement timing</button>
+        <button class="option" data-correct="false">The FCA blocked gilt sales during the crisis to prevent market disruption</button>
+      </div>
+      <div class="feedback good">Correct. This is the classic "fire sale" dynamic. Multiple funds simultaneously selling gilts created a self-reinforcing loop: selling pushed yields higher → higher yields triggered more margin calls → more selling. This is a classic non-linear systemic risk: individually rational actions (sell gilts to meet margin calls) produce a collectively catastrophic outcome. The Bank of England's emergency purchases broke the loop by providing a buyer of last resort.</div>
+      <div class="feedback bad">The LDI crisis was a collateral spiral: many funds simultaneously sold gilts to meet margin calls → gilt prices fell further → yields rose further → more margin calls → more selling. The system had no natural stopping point without external intervention. This is precisely the type of nonlinear systemic dynamics that standard VaR/margin models don't capture — they assume the fund's own trades don't move the market, which is false when many large funds act simultaneously.</div>
+    </div>
+    <div class="question">
+      <p>3. What is a longevity swap, and why might a pension fund enter into one?</p>
+      <div class="options">
+        <button class="option" data-correct="false">A longevity swap exchanges pension liabilities for investment grade bonds — eliminating all pension risk</button>
+        <button class="option" data-correct="true">The pension fund pays fixed scheduled benefit payments; the counterparty (insurer) pays actual benefit payments regardless of how long pensioners live — transferring longevity risk off the fund's balance sheet</button>
+        <button class="option" data-correct="false">A longevity swap converts a DB scheme into a DC scheme for accounting purposes</button>
+        <button class="option" data-correct="false">A longevity swap is an IAS19 accounting technique for smoothing deficit volatility</button>
+      </div>
+      <div class="feedback good">Correct. A longevity swap isolates and transfers the longevity risk component of a DB pension. The fund pays its actuarially projected benefit stream; the insurer pays the actual benefit stream (which may be larger if pensioners live longer than projected). The fund eliminates the uncertainty about longevity experience. The cost is the longevity risk premium charged by the insurer — currently elevated due to post-COVID longevity uncertainty. ML individual mortality models are used to price the longevity risk premium more accurately.</div>
+      <div class="feedback bad">In a longevity swap: the pension fund pays what its models project (fixed, based on mortality assumptions) and receives what the pensioners actually cost (floating, based on actual deaths). If pensioners live longer than projected, the fund owes more than it receives — but the insurer makes up the difference. Longevity risk is transferred. The fund trades the uncertainty of how long people live for a known premium. ML improves longevity swap pricing by more accurately predicting individual pensioner mortality characteristics that determine the fair premium.</div>
+    </div>
+    <div class="quiz-score"></div>
+  </div>
+  <hr>
+  <h2>Primary source to read next</h2>
+  <p><strong>Bank of England — "The financial stability implications of the LDI sector" (October 2022)</strong><br>
+  <a href="https://www.bankofengland.co.uk/financial-stability-in-focus/2022/october-2022" target="_blank">bankofengland.co.uk — Financial Stability in Focus, Oct 2022</a></p>
+  <p>The Bank's own analysis of the LDI crisis mechanism. Clear explanation of the collateral spiral dynamics and the intervention rationale. Pair with the TPR (The Pensions Regulator) post-event review for the governance implications and how leveraged LDI stress-testing requirements have been tightened.</p>
+  <h2>What comes next</h2>
+  <ul>
+    <li><a href="0020-insurance-ifrs17.html">← Lesson 20: Insurance Models</a></li>
+    <li><a href="0022-cyber-risk.html">Lesson 22: Cyber Risk Models →</a></li>
+  </ul>
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — LDI mechanics, longevity swap pricing, or IAS19 balance sheet treatment are all worth discussing further.</p>
+    <p style="margin-top:.5rem;">Lesson 21 · <em>AI/ML in Banking &amp; Finance</em> · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

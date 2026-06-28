@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 20: Insurance Models — IFRS17</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<div class="page">
+  <div class="lesson-meta">Lesson 20 · Insurance &amp; Actuarial</div>
+  <h1>Insurance Models — IFRS17, Claims ML, and Longevity Risk</h1>
+  <p class="subtitle">How ML integrates with actuarial science — and why the IFRS17 accounting standard changed what banks' insurance subsidiaries must model.</p>
+
+  <h2>1. The insurance business model and its risk types</h2>
+  <p>Insurance companies (and bank-owned insurance subsidiaries) collect premiums upfront and pay claims later — the opposite of lending. This creates a distinctive risk profile:</p>
+  <table>
+    <thead><tr><th>Risk type</th><th>Description</th><th>ML application</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Insurance risk</strong></td><td>Actual claims exceed expected — frequency and severity worse than priced</td><td>Claims frequency/severity ML models; catastrophe models</td></tr>
+      <tr><td><strong>Longevity risk</strong></td><td>Annuity holders live longer than expected — more payments than priced (annuities and pensions)</td><td>Lee-Carter + ML mortality forecasting; survival analysis</td></tr>
+      <tr><td><strong>Mortality risk</strong></td><td>Life insurance policyholders die sooner — larger claims than expected</td><td>Underwriting ML; mortality prediction models</td></tr>
+      <tr><td><strong>Market risk</strong></td><td>Investment portfolio losses reduce ability to pay future claims</td><td>Asset-Liability Management (ALM); duration matching ML</td></tr>
+      <tr><td><strong>Catastrophe risk</strong></td><td>Extreme weather, pandemics, or man-made catastrophes produce correlated claims</td><td>Cat models (RMS, AIR); climate SEG from Lesson 16</td></tr>
+    </tbody>
+  </table>
+
+  <h2>2. IFRS17 — the new insurance accounting standard</h2>
+  <p>IFRS17 (effective January 2023) replaced IFRS4 with a comprehensive standard for insurance contract accounting. It requires insurance liabilities to be measured using the <strong>Building Block Approach (BBA)</strong>:</p>
+  <pre>IFRS17 Liability = Fulfilment Cash Flows + Contractual Service Margin (CSM)
+
+Fulfilment Cash Flows:
+  = Present Value of Future Cash Flows (PVFCF)
+    + Risk Adjustment (RA)
+
+Where:
+  PVFCF = discounted expected future claims + expenses − future premiums
+  RA    = compensation for non-financial risk bearing (typically set at 75th percentile)
+  CSM   = unearned profit, released over coverage period as service is provided</pre>
+  <p>Key modelling implications: all cash flow projections must use <strong>current market-consistent discount rates</strong>, expected cash flows must capture the full probability distribution of outcomes, and the Risk Adjustment requires a probability of sufficiency choice (typically 75th percentile — meaning the RA covers outcomes up to the 75th percentile of the outcome distribution). This requires stochastic claims models, not just expected value projections.</p>
+
+  <h2>3. Claims modelling with ML</h2>
+  <p>The core insurance ML application is improving claims prediction over the actuarial baseline. Claims are typically modelled in two stages:</p>
+  <ul>
+    <li><strong>Frequency model:</strong> predicts the number of claims per policy per year. Classical model: Poisson GLM. ML improvement: XGBoost or neural network capturing non-linear feature interactions (claims history × age × exposure location) that GLM misses.</li>
+    <li><strong>Severity model:</strong> predicts the cost per claim. Classical model: Gamma GLM (right-skewed losses). ML improvement: quantile regression forests or gradient boosting on claims cost, with separate sub-models for large loss events.</li>
+  </ul>
+  <pre>Pure premium (expected cost) = Frequency × Severity
+                              = E[claims/policy] × E[cost/claim]
+
+ML goal: more accurate joint frequency-severity prediction
+         → fairer pricing, better reserve estimates, competitive advantage</pre>
+  <p>SHAP values on claims models help identify which features drive pricing — critical for regulatory scrutiny (UK FCA pricing fairness rules prohibit using certain proxy variables such as postcode as a proxy for ethnicity).</p>
+
+  <h2>4. Reserving — the IBNR problem</h2>
+  <p>Claims reserving estimates how much the insurer must hold for <strong>Incurred But Not Reported (IBNR)</strong> claims — losses that have happened but not yet been filed. The classical actuarial tool is the <strong>chain ladder method</strong> (development factors applied to triangle of paid claims). ML improvements:</p>
+  <ul>
+    <li><strong>Reserving neural networks (ResNets for triangles):</strong> train a neural network directly on development triangles. Can detect patterns the chain ladder misses — particularly for lines where development factors vary by accident year.</li>
+    <li><strong>Stochastic chain ladder (bootstrapping):</strong> bootstrap the residuals of chain ladder fits to produce a distribution of reserve estimates — needed for IFRS17 Risk Adjustment and Solvency II SCR calculation.</li>
+    <li><strong>Tail factor estimation:</strong> ML on industry-wide data improves tail development factor estimation when individual company data is too sparse.</li>
+  </ul>
+
+  <h2>5. Longevity risk — the actuarial ML frontier</h2>
+  <p>For pension annuities and life insurance, <strong>longevity risk</strong> is the risk that policyholders live longer than projected. The classical mortality model is Lee-Carter:</p>
+  <pre>ln(μ_xt) = α_x + β_x · κ_t + ε_xt
+
+where: μ_xt  = mortality rate for age x at time t
+       α_x   = age-specific baseline mortality
+       β_x   = age-specific sensitivity to mortality trend
+       κ_t   = time trend (improving mortality = falling κ_t)
+       ε_xt  = noise term</pre>
+  <p>Lee-Carter captures the historical trend of improving mortality but struggles with: (a) cohort effects (certain birth years show unexpectedly low/high mortality), (b) pandemic shocks (COVID 2020-21), and (c) structural breaks in mortality improvement trends. ML improvements:</p>
+  <ul>
+    <li><strong>Deep neural networks for mortality:</strong> DNNs on age-period-cohort data capture cohort effects automatically without the need to specify the cohort structure a priori</li>
+    <li><strong>Gradient boosting on socioeconomic features:</strong> postcode-level income, deprivation index, smoking rates, and BMI data improve individual-level mortality prediction for pricing and portfolio management</li>
+    <li><strong>Scenario generation:</strong> VAE/GAN-generated mortality improvement scenarios for IFRS17 stochastic cash flow projections</li>
+  </ul>
+
+  <h2>6. Catastrophe models</h2>
+  <p>Catastrophe events (hurricanes, earthquakes, pandemics) produce correlated losses across the insurer's entire portfolio. Dedicated cat models (commercial platforms: RMS, AIR, Verisk) simulate thousands of catastrophe scenarios and estimate industry-wide and company-specific losses. ML role:</p>
+  <ul>
+    <li>Improved windspeed/flood depth prediction from physical climate models → more accurate footprints</li>
+    <li>Computer vision (satellite/aerial imagery) for post-event damage assessment — replacing manual inspection for large-scale events</li>
+    <li>NLP on claims reports for early severity estimation after a catastrophe event</li>
+  </ul>
+
+  <div class="callout risk">
+    <div class="callout-label">IFRS17 and model risk governance</div>
+    IFRS17 requires that all assumptions (discount rates, claims development, mortality improvement, risk adjustment methodology) be documented, justified, and audited. The external auditor reviews the actuarial model adequacy. For insurers with ML-driven cash flow models, this creates a new model risk governance requirement: models must be interpretable and their assumptions documented with sufficient clarity for audit sign-off. SHAP-based explainability is rapidly becoming standard practice for claims and reserving ML models in audit contexts.
+  </div>
+
+  <hr>
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+    <div class="question">
+      <p>1. Under IFRS17 BBA, what does the Contractual Service Margin (CSM) represent, and how is it recognised in P&L?</p>
+      <div class="options">
+        <button class="option" data-correct="false">The CSM represents expected future claims and is expensed immediately on contract inception</button>
+        <button class="option" data-correct="true">The CSM represents the unearned profit in a group of contracts and is released into P&L over the coverage period as insurance service is provided</button>
+        <button class="option" data-correct="false">The CSM is an additional capital buffer similar to Pillar 2A in banking</button>
+        <button class="option" data-correct="false">The CSM equals the Risk Adjustment and compensates for uncertainty in cash flow estimates</button>
+      </div>
+      <div class="feedback good">Correct. The CSM prevents immediate recognition of "day one profit" — the present value of premiums exceeds the present value of expected claims for a profitable contract. This unearned profit sits in the CSM balance sheet liability and is released into insurance service revenue over the period during which the insurer provides coverage. This matches revenue recognition to service delivery — a fundamental principle of IFRS15/17.</div>
+      <div class="feedback bad">The CSM is the IFRS17 mechanism for matching profit recognition to service delivery. On day one, if a contract is profitable (PV premiums > PV claims + expenses), that surplus is locked in the CSM rather than recognised immediately. It is then released systematically over the coverage period as the insurer provides insurance service — aligning revenue with the period during which risk is borne. Unprofitable contracts produce a loss component instead, which IS recognised immediately.</div>
+    </div>
+    <div class="question">
+      <p>2. Why is the two-stage claims model (frequency × severity) better structured than a single model predicting total claims cost directly?</p>
+      <div class="options">
+        <button class="option" data-correct="false">The two-stage model is simpler to implement and requires less data</button>
+        <button class="option" data-correct="true">Frequency and severity have different distributions and different predictor relationships — separate models capture each process more accurately, and the factored structure aids interpretability and pricing analysis</button>
+        <button class="option" data-correct="false">Regulators require the two-stage structure; a single model is not permitted under Solvency II</button>
+        <button class="option" data-correct="false">A single model predicting total cost violates the law of large numbers</button>
+      </div>
+      <div class="feedback good">Correct. Claims frequency (Poisson-distributed count) and severity (Gamma or log-normal distributed cost) have fundamentally different statistical properties and different predictor relationships. A young male driver has high frequency but low average severity; a commercial fleet may have low frequency but catastrophic individual losses. Separating the models allows each component to be calibrated on its own data generating process, with separate feature sets and distributions. It also allows pricing stress-tests on each component independently.</div>
+      <div class="feedback bad">Claim count and claim cost have different distributions (Poisson vs Gamma/lognormal) and respond differently to risk factors. Driver age strongly predicts claim count; vehicle value strongly predicts cost per claim. A single model conflating these creates specification error. The frequency × severity structure also enables separate analysis: why did my book experience increase? Was it more claims (frequency up) or larger claims (severity up)? Each has a different management response.</div>
+    </div>
+    <div class="question">
+      <p>3. What is the IBNR problem in insurance reserving, and what makes ML reserving approaches potentially superior to the chain ladder method?</p>
+      <div class="options">
+        <button class="option" data-correct="false">IBNR stands for Incorrect But Not Revised — ML corrects errors in historical triangle data</button>
+        <button class="option" data-correct="true">IBNR = Incurred But Not Reported — claims that have happened but not yet been filed. ML neural network models on development triangles can detect non-stationary development patterns that chain ladder misses, particularly cohort-specific development anomalies</button>
+        <button class="option" data-correct="false">IBNR is only relevant for catastrophe insurance; ML addresses it via satellite imagery</button>
+        <button class="option" data-correct="false">The chain ladder method produces identical results to ML when the development triangle has sufficient data</button>
+      </div>
+      <div class="feedback good">Correct. IBNR claims create the reserving challenge: at year-end, the insurer knows premiums earned but not the total cost of claims for that year, since some haven't been filed yet. Chain ladder estimates development patterns from historical triangles but assumes stationary development factors — an assumption that breaks for new lines of business, volatile claim environments, or lines with long settlement tails. ML neural networks on triangles learn development patterns without the stationarity assumption and can capture accident-year-specific effects that chain ladder averages out.</div>
+      <div class="feedback bad">IBNR is the gap between claims that have occurred and claims that have been reported and processed. Every year-end, the balance sheet must reserve for this. Chain ladder extrapolates historical development triangles but imposes a strong stationarity assumption (development factors are the same every accident year). ML improves on this by learning non-stationary patterns: a triangle showing accelerating development in recent years (perhaps due to litigation trends) would be captured by an ML model and missed by a classical chain ladder average.</div>
+    </div>
+    <div class="quiz-score"></div>
+  </div>
+  <hr>
+  <h2>Primary source to read next</h2>
+  <p><strong>IFRS Foundation — IFRS17 Standard and Illustrative Examples</strong><br>
+  <a href="https://www.ifrs.org/issued-standards/list-of-standards/ifrs-17-insurance-contracts/" target="_blank">ifrs.org — IFRS 17 Insurance Contracts</a></p>
+  <p>The primary standard text. The Basis for Conclusions appendix explains the reasoning behind CSM, Risk Adjustment, and discount rate choices — essential reading for understanding what actuarial models must produce. Pair with the Institute and Faculty of Actuaries' working party papers on ML in reserving.</p>
+  <h2>What comes next</h2>
+  <ul>
+    <li><a href="0019-capital-markets-pricing.html">← Lesson 19: Capital Markets Pricing</a></li>
+    <li><a href="0021-pension-risk.html">Lesson 21: Pension Risk Models →</a></li>
+  </ul>
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — Lee-Carter mortality modelling, IFRS17 CSM mechanics, or ML reserving approaches are all worth discussing further.</p>
+    <p style="margin-top:.5rem;">Lesson 20 · <em>AI/ML in Banking &amp; Finance</em> · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

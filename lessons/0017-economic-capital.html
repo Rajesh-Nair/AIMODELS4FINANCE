@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 17: Economic Capital Models</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<div class="page">
+  <div class="lesson-meta">Lesson 17 · Capital Management</div>
+  <h1>Economic Capital Models</h1>
+  <p class="subtitle">How banks quantify the capital needed to survive unexpected losses at a given confidence level — independently of regulatory minimums.</p>
+
+  <h2>1. Regulatory capital vs economic capital</h2>
+  <p><strong>Regulatory capital</strong> is the minimum capital prescribed by Basel rules (Pillar 1 + Pillar 2 add-ons). It is standardised, externally imposed, and designed to protect depositors and taxpayers. <strong>Economic Capital (EC)</strong> is the bank's own internal estimate of the capital required to cover unexpected losses at a chosen confidence level (typically 99.9% or 99.97% — consistent with a target credit rating).</p>
+  <table>
+    <thead><tr><th></th><th>Regulatory Capital</th><th>Economic Capital</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Authority</strong></td><td>Basel / PRA / ECB</td><td>Internal — bank's own model</td></tr>
+      <tr><td><strong>Purpose</strong></td><td>Regulatory compliance, depositor protection</td><td>Internal risk management, pricing, performance measurement</td></tr>
+      <tr><td><strong>Confidence level</strong></td><td>Implicitly ~99.9% for credit (IRB)</td><td>Explicitly chosen to match target credit rating (99.97% = AA)</td></tr>
+      <tr><td><strong>Uses</strong></td><td>CET1, Tier 1, Total Capital ratios</td><td>RAROC (Risk-Adjusted Return on Capital), business line performance, ICAAP</td></tr>
+    </tbody>
+  </table>
+
+  <h2>2. The ICAAP — where economic capital lives</h2>
+  <p>The <strong>Internal Capital Adequacy Assessment Process (ICAAP)</strong> is the annual document in which banks assess their own capital needs under Pillar 2. It must cover all material risks — credit, market, operational, liquidity, IRRBB, concentration, pension, climate — and demonstrate that the bank holds sufficient capital to cover them. EC is the internal quantification tool feeding the ICAAP.</p>
+
+  <h2>3. Credit portfolio models — the EC engine</h2>
+  <p>The dominant EC application is credit portfolio EC — quantifying the distribution of credit losses across the full loan portfolio, not just the expected loss (PD × LGD × EAD). The unexpected loss in the tail of this distribution is what EC covers.</p>
+  <p>Two classical model families:</p>
+  <ul>
+    <li><strong>CreditMetrics (JP Morgan, 1997):</strong> Monte Carlo simulation of credit rating migrations and defaults. Each obligor's credit state is driven by a correlated Gaussian factor. The portfolio loss distribution is simulated across thousands of scenarios.</li>
+    <li><strong>CreditRisk+ (Credit Suisse, 1997):</strong> Analytical actuarial model. Default events follow Poisson processes with stochastic intensity (driven by common macro factors). Produces a closed-form loss distribution via generating functions.</li>
+  </ul>
+  <pre>Loss distribution → EC = VaR(99.9%) − Expected Loss
+                         = Unexpected Loss at target confidence level</pre>
+
+  <h2>4. The correlation problem — and ML's contribution</h2>
+  <p>The most important parameter in any credit portfolio EC model is <strong>asset correlation</strong>: how likely is it that multiple obligors default simultaneously? Wrong correlation assumptions were a primary cause of CDO model failures in 2008.</p>
+  <p>Classical models use the Gaussian copula — a mathematically convenient but empirically poor representation of joint default events. The Gaussian copula underestimates <strong>tail dependence</strong>: the probability that many obligors default together in a stress event exceeds what the Gaussian predicts.</p>
+  <p>ML improves correlation estimation in two ways:</p>
+  <ul>
+    <li><strong>Non-Gaussian copulas:</strong> Student-t copulas, Clayton copulas, and vine copulas fit historical default clustering more accurately. ML model selection (BIC/AIC optimisation) identifies the best-fitting copula from data.</li>
+    <li><strong>Dynamic correlation:</strong> Asset correlations rise in recessions. ML models (GARCH-DCC — Dynamic Conditional Correlation) estimate time-varying correlations that produce higher EC during stress periods, matching the intuition that diversification benefits shrink when most needed.</li>
+  </ul>
+
+  <h2>5. Risk aggregation across risk types</h2>
+  <p>A bank's total EC must aggregate across credit, market, operational, IRRBB, and other risks. These risks are correlated — a recession simultaneously increases credit losses, widens market risk spreads, and elevates operational losses. Simple summation overstates total EC (ignores diversification); assuming perfect independence understates it.</p>
+  <p>Standard approach: copula-based aggregation, with the inter-risk correlation matrix as the key parameter. This matrix is usually estimated from historical stress periods, expert judgment, or regulatory guidance — and is one of the most heavily scrutinised assumptions in EC model validation.</p>
+  <pre>EC_total = VaR_99.9%[ f(EC_credit, EC_market, EC_op, ...; Σ_inter-risk) ]
+
+where Σ_inter-risk is the inter-risk correlation matrix (typically 20–50% off-diagonal)</pre>
+
+  <h2>6. RAROC — using EC for performance measurement</h2>
+  <p><strong>RAROC (Risk-Adjusted Return on Capital)</strong> allocates EC to business lines and measures return relative to the capital consumed:</p>
+  <pre>RAROC = Net Revenue − Expected Loss − Operating Costs
+        ─────────────────────────────────────────────────
+                     Economic Capital</pre>
+  <p>A business line with RAROC above the bank's hurdle rate (typically 10–15%) is creating value; below it, destroying value relative to the capital deployed. RAROC-driven pricing means the bank charges more for high-EC products and less for low-EC ones — aligning credit pricing with true risk cost.</p>
+
+  <div class="callout risk">
+    <div class="callout-label">Model risk in EC models</div>
+    EC models face a validation challenge: the target confidence levels (99.97%) correspond to events expected less than once in 3,000 years. There is no meaningful back-testing. Validators focus on: sensitivity analysis of EC to correlation assumptions, benchmarking against peer banks and regulatory capital, and stress-testing the correlation matrix under recession assumptions. The ICAAP submission itself is reviewed by the regulator (PRA/ECB) during SREP — weaknesses in EC methodology can result in Pillar 2A capital add-ons.
+  </div>
+
+  <hr>
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+    <div class="question">
+      <p>1. A bank's credit portfolio EC at 99.9% confidence is £800m, and the expected credit loss is £200m. What is the unexpected loss the EC covers?</p>
+      <div class="options">
+        <button class="option" data-correct="false">£800m — EC covers the total loss at 99.9%</button>
+        <button class="option" data-correct="true">£600m — EC covers the loss in excess of the expected loss</button>
+        <button class="option" data-correct="false">£1,000m — EC is the sum of expected and unexpected loss</button>
+        <button class="option" data-correct="false">£200m — EC equals the expected loss</button>
+      </div>
+      <div class="feedback good">Correct. EC = VaR(99.9%) − Expected Loss = £800m − £200m = £600m. The expected loss is already covered by IFRS9 provisions (an income statement charge). EC covers the additional unexpected loss — the variance around the expected — that provisions do not cover. This is the conceptual alignment between accounting provisioning and economic capital.</div>
+      <div class="feedback bad">EC = Unexpected Loss = VaR(99.9%) − Expected Loss = 800 − 200 = £600m. The expected loss is covered by IFRS9 provisions (reducing net interest income). Economic capital covers the tail of the loss distribution above the expected — the loss that occurs not on average but in bad years. Holding EC ensures the bank can absorb this without failing.</div>
+    </div>
+    <div class="question">
+      <p>2. Why did Gaussian copula assumptions underestimate CDO losses in 2008?</p>
+      <div class="options">
+        <button class="option" data-correct="false">The Gaussian copula overstated asset correlations in normal conditions</button>
+        <button class="option" data-correct="true">The Gaussian copula has thin tails — it underestimates the probability that many obligors default simultaneously in a severe stress event</button>
+        <button class="option" data-correct="false">The Gaussian copula was incorrectly calibrated to equity rather than credit data</button>
+        <button class="option" data-correct="false">CDO models used Gaussian copulas without any correlation assumptions</button>
+      </div>
+      <div class="feedback good">Correct. The Gaussian copula's critical flaw is zero tail dependence — at very extreme events, it predicts that obligor defaults become independent. In practice, severe macro shocks (like the US housing collapse) cause many obligors to default simultaneously — far more than the Gaussian model predicts. Student-t and other heavy-tailed copulas better capture this clustering, producing higher EC estimates in extreme scenarios.</div>
+      <div class="feedback bad">The Gaussian copula's tail dependence is zero — in its extreme scenarios, obligors default independently. Real credit portfolios show the opposite: in severe recessions, defaults cluster far beyond what correlation in normal conditions would predict. This "tail dependence" is what the Gaussian copula misses and what caused CDO models to massively understate the probability of simultaneous widespread defaults in 2007–2008.</div>
+    </div>
+    <div class="question">
+      <p>3. A business line has net revenue £50m, expected loss £20m, operating costs £15m, and EC allocation of £100m. The bank's hurdle rate is 12%. Is this business line creating or destroying value?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Creating value — revenue exceeds expected loss</button>
+        <button class="option" data-correct="true">Destroying value — RAROC = 15% exceeds hurdle… wait, let me compute: (50−20−15)/100 = 15% > 12% → creating value</button>
+        <button class="option" data-correct="false">Destroying value — RAROC = 5% is below hurdle</button>
+        <button class="option" data-correct="false">Cannot be assessed without market risk EC</button>
+      </div>
+      <div class="feedback good">Correct. RAROC = (50 − 20 − 15) / 100 = 15 / 100 = 15%. Since 15% > 12% hurdle rate, the business line is creating value relative to its capital consumption. RAROC pricing means if this business line were charging less and RAROC fell below 12%, the bank would need to either reprice or exit the business.</div>
+      <div class="feedback bad">RAROC = (Revenue − EL − Costs) / EC = (50 − 20 − 15) / 100 = 15%. Hurdle rate = 12%. 15% > 12% → value-creating. RAROC-based management means business lines must earn above the hurdle rate on their EC allocation. Those that don't are consuming capital without adequate return — a signal to reprice or reduce exposure.</div>
+    </div>
+    <div class="quiz-score"></div>
+  </div>
+  <hr>
+  <h2>Primary source to read next</h2>
+  <p><strong>Roncalli, Thierry — "Risk Management in Finance" (2020), Chapter on Economic Capital</strong></p>
+  <p>Covers copula theory, credit portfolio models, and risk aggregation at the technical level appropriate for an ML practitioner. Freely available lecture notes at <a href="http://www.thierry-roncalli.com" target="_blank">thierry-roncalli.com</a>. Pair with the original CreditMetrics technical document (JP Morgan, 1997) for the foundational model.</p>
+  <h2>What comes next</h2>
+  <ul>
+    <li><a href="0016-climate-risk-seg.html">← Lesson 16: Climate Risk</a></li>
+    <li><a href="0018-asset-management.html">Lesson 18: Asset Management &amp; Investment Models →</a></li>
+  </ul>
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — copula mechanics, RAROC pricing, or ICAAP governance are all worth discussing further.</p>
+    <p style="margin-top:.5rem;">Lesson 17 · <em>AI/ML in Banking &amp; Finance</em> · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 25: HR Models</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<div class="page">
+  <div class="lesson-meta">Lesson 25 · People Analytics</div>
+  <h1>HR Models — Workforce Analytics, Attrition, and Compensation</h1>
+  <p class="subtitle">ML applied to the human capital that drives a bank's performance — and why fairness, transparency, and GDPR make HR the most governance-sensitive domain in this entire curriculum.</p>
+
+  <h2>1. Why HR models in a banking ML curriculum</h2>
+  <p>Banks employ tens of thousands of people. Talent risk — losing key personnel, hiring the wrong candidates, miscalibrating compensation — is a material operational risk. HR analytics in financial services must simultaneously deliver business value and satisfy some of the strictest fairness and privacy requirements of any ML domain:</p>
+  <ul>
+    <li><strong>Regulatory scrutiny:</strong> employment discrimination law (Equality Act 2010, Title VII), GDPR/UK GDPR (HR data is among the most sensitive personal data categories), and FCA Senior Managers and Certification Regime (SM&amp;CR) create a dense compliance environment.</li>
+    <li><strong>Explainability requirement:</strong> individuals have the right to understand decisions affecting them (GDPR Article 22 on automated decision making). A black-box model denying a promotion cannot be deployed without explainability.</li>
+    <li><strong>Fairness:</strong> ML models on HR data are trained on historical data that reflects historical biases. Uncorrected, they perpetuate those biases — exposing the bank to discrimination claims.</li>
+  </ul>
+
+  <h2>2. Employee attrition prediction</h2>
+  <p>Predicting which employees are at risk of leaving allows targeted retention interventions. The modelling problem resembles credit churn prediction:</p>
+  <pre>Target variable: employee leaves within N months (binary)
+Features:
+  Performance trajectory (recent vs historical rating trends)
+  Tenure and career progression speed vs cohort benchmark
+  Compensation relative to market (pay gap to external benchmark)
+  Manager quality score (team attrition rate, engagement scores)
+  Internal mobility — number of applications, lateral move history
+  Commute distance, remote work eligibility
+  Recent life events (promotion received/denied, team restructuring)
+
+ML models: XGBoost, logistic regression (with SHAP for explainability)
+Survival analysis: Cox PH with time-varying covariates (tenure as time axis)</pre>
+  <p>Output: attrition risk score per employee, segmented by risk tier. High-risk employees in key roles trigger a retention workflow — manager discussion, compensation review, or development opportunity. The model should NOT automate retention decisions; it surfaces signals for human action.</p>
+
+  <h2>3. Workforce planning and headcount forecasting</h2>
+  <p>Beyond individual attrition, banks need macro workforce planning: how many staff will be needed in 2-5 years, by skill, role, and geography? ML applications:</p>
+  <ul>
+    <li><strong>Attrition forecasting at aggregate level:</strong> rolling 12-month attrition projection by business unit — inputs to hiring plan and succession planning</li>
+    <li><strong>Skills gap analysis:</strong> NLP on job descriptions + employee CVs/profiles identifies emerging skill gaps as business strategy evolves (e.g., need for ML engineers, cloud architects)</li>
+    <li><strong>Scenario planning:</strong> "what if" models for restructuring — if the bank offshores 20% of operations roles, what is the projected retention rate of the remaining staff? How long does it take to rebuild capability after downsizing?</li>
+  </ul>
+
+  <h2>4. Compensation modelling</h2>
+  <p>Compensation in banking is complex: base salary + variable pay (bonus) + long-term incentives (shares, options). Compensation models must be:</p>
+  <ul>
+    <li><strong>Market-competitive:</strong> regression models on survey data (Willis Towers Watson, McLagan) benchmark compensation by role, level, geography, and performance</li>
+    <li><strong>Internal equity:</strong> identify unexplained pay gaps across gender, ethnicity within equivalent roles — a fairness and regulatory requirement (UK Gender Pay Gap reporting, FCA diversity requirements)</li>
+    <li><strong>Performance-aligned:</strong> bonus allocation models linking business unit and individual performance to variable pay, subject to regulatory constraints (CRD V bonus cap: variable pay ≤ 2× fixed for Material Risk Takers)</li>
+  </ul>
+  <pre>Fair pay analysis:
+  Regression: Salary = f(Role, Level, Tenure, Performance, Geography, ...)
+  Residual analysis: unexplained pay gap by protected characteristic (gender, ethnicity)
+  → If residual is statistically significant → remediation required</pre>
+
+  <h2>5. Recruitment models</h2>
+  <p>ML in recruitment: screening applications, predicting candidate success, and reducing bias in selection. High-stakes governance area:</p>
+  <ul>
+    <li><strong>CV screening:</strong> NLP models parse CVs and score candidate-job fit. Risk: trained on historical hire data, which reflects historical screener biases. Amazon's 2018 gender-biased CV screening model is the canonical cautionary case — it downgraded CVs mentioning "women's chess club" because historical hires had been predominantly male.</li>
+    <li><strong>Interview scheduling optimisation:</strong> ML scheduling of interview panels to reduce time-to-hire while maintaining diversity of panel representation</li>
+    <li><strong>Assessment scoring:</strong> game-based or video interview scoring using ML. Very high explainability requirement — candidates denied interviews have GDPR Article 22 rights to know why an automated process rejected them.</li>
+  </ul>
+
+  <h2>6. Fairness and governance requirements</h2>
+  <p>For all HR ML models, the governance framework must include:</p>
+  <table>
+    <thead><tr><th>Requirement</th><th>Implementation</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Bias testing</strong></td><td>Demographic parity, equal opportunity, and equalised odds tests across protected characteristics at model development and re-validation</td></tr>
+      <tr><td><strong>GDPR Article 22</strong></td><td>If a decision significantly affecting an individual is based solely on automated processing, the individual has the right to human review. Bank HR models must either include human review or be classified as non-sole-automated-decision.</td></tr>
+      <tr><td><strong>Data minimisation</strong></td><td>GDPR requires HR models to use only the minimum personal data necessary. Features like health data or political views must be excluded.</td></tr>
+      <tr><td><strong>Explainability</strong></td><td>SHAP explanations for individual attrition or pay gap flags — managers must understand why an employee is flagged before taking action.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout risk">
+    <div class="callout-label">The feedback loop in HR models</div>
+    HR models are particularly vulnerable to feedback loop bias. If an attrition model scores high-risk employees in a particular demographic, and managers are less likely to offer development opportunities to those employees, retention rates for that group fall further — confirming the model's prediction for the wrong reason. Counterfactual analysis (causal ML, A/B testing of retention interventions) is needed to distinguish genuine risk signals from self-fulfilling model outputs.
+  </div>
+
+  <hr>
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+    <div class="question">
+      <p>1. A bank trains a CV screening model on 10 years of historical hiring data. After deployment, it is found to systematically score women lower for quantitative roles. What is the most likely root cause?</p>
+      <div class="options">
+        <button class="option" data-correct="false">The model's algorithm has an inherent mathematical gender bias</button>
+        <button class="option" data-correct="true">Historical hiring data reflects historical screener biases — if women were hired less frequently for quantitative roles in the past, the model learns to replicate that pattern, even without gender as an explicit feature (via proxy features)</button>
+        <button class="option" data-correct="false">The training data was mislabelled — successful male hires were incorrectly labelled as female</button>
+        <button class="option" data-correct="false">Women systematically have CVs with different keywords that happen to be penalised</button>
+      </div>
+      <div class="feedback good">Correct. This is the canonical ML fairness failure: the model learns from historical hiring decisions that themselves reflected historical bias. Even without gender as an explicit feature, proxy features (certain universities, sports, extracurricular activities that correlate with gender in the training data) carry the gender signal. The model achieves its training objective (predict past hiring decisions) but replicates past discrimination. Mitigation requires adversarial debiasing, pre-processing of training labels, or post-hoc fairness constraints — plus demographic parity testing before deployment.</div>
+      <div class="feedback bad">The model has no inherent bias — it minimises prediction error against the training labels. But the labels ARE biased: historical hire/no-hire decisions encoded the biases of historical hiring managers. The model faithfully learns this pattern, including any gender signal encoded in proxy variables. Amazon's 2018 recruitment model downgraded CVs mentioning "women's" organisations — not because the model was given gender as a feature, but because such mentions were negatively correlated with being hired historically (due to past screener bias). The model then propagated this bias automatically.</div>
+    </div>
+    <div class="question">
+      <p>2. Under GDPR Article 22, when must a bank provide human review of an HR decision?</p>
+      <div class="options">
+        <button class="option" data-correct="false">For all HR decisions involving ML, regardless of the decision type</button>
+        <button class="option" data-correct="true">When a decision significantly affecting an individual (promotion, termination, pay adjustment) is based solely or primarily on automated processing — human review is required unless the individual has explicitly consented to the automated decision</button>
+        <button class="option" data-correct="false">Only when the decision is negative — positive decisions (promotion offers) are exempt</button>
+        <button class="option" data-correct="false">Human review is optional if the ML model has been audited and certified by an accredited assessor</button>
+      </div>
+      <div class="feedback good">Correct. Article 22 gives individuals the right not to be subject to a decision based solely on automated processing if the decision produces legal or similarly significant effects. For HR, promotion, termination, and pay decisions clearly meet this threshold. The bank must either: (1) ensure a human makes the final decision using the model as an input (not as the sole decision-maker), (2) obtain the employee's explicit consent to the automated decision, or (3) show the decision is necessary for a contract. Option 1 is the standard approach in well-governed HR ML systems.</div>
+      <div class="feedback bad">Article 22's right to human review applies to decisions with significant effects based solely on automated processing. In practice, any HR decision that significantly affects employment terms — bonus, promotion, termination — triggers this right if the decision is made by an algorithm without meaningful human review. Banks typically ensure HR ML models are explicitly positioned as "decision support tools" with documented human sign-off at the final decision stage. This both satisfies GDPR and aligns with good model governance (ML as a tool, not an autonomous decision-maker).</div>
+    </div>
+    <div class="question">
+      <p>3. Why is the CRD V 2× bonus cap specifically relevant to compensation modelling for Material Risk Takers?</p>
+      <div class="options">
+        <button class="option" data-correct="false">The 2× cap applies to all employees of EU/UK banks</button>
+        <button class="option" data-correct="true">Material Risk Takers (senior staff whose actions materially affect the bank's risk profile) have variable pay capped at 2× fixed pay — the compensation model must correctly identify MRTs and ensure the cap is respected, with shareholder vote required to exceed 1× cap</button>
+        <button class="option" data-correct="false">The 2× cap is a target, not a maximum — compensation models should aim to reach 2× for top performers</button>
+        <button class="option" data-correct="false">The cap only applies in bad years; in profitable years there is no restriction on variable pay</button>
+      </div>
+      <div class="feedback good">Correct. CRD V (Capital Requirements Directive V) introduced the bonus cap as a macro-prudential tool — to reduce incentives for excessive risk-taking that a bonus-maximising culture creates. Material Risk Takers (defined by the EBA delegated act on MRT criteria) include senior management, risk takers, control function staff, and others with material impact on the bank's risk profile. A compensation model that allocates bonuses must identify the MRT population correctly and hard-cap variable pay at 2× fixed (or 1× without a shareholder supermajority vote). An error in MRT identification or cap enforcement is a regulatory breach.</div>
+      <div class="feedback bad">The MRT bonus cap is a regulatory hard constraint on the compensation model output. Compensation models that simply maximise retention or market-competitiveness without building in the MRT cap will produce illegal pay structures. The CRD V cap exists to reduce incentive for excessive risk-taking: an employee whose bonus can be 10× fixed has strong incentives to take large short-term risks. At 2×, the risk-reward calculation is different. Compensation models must enforce this constraint, log which employees are classified as MRTs, and document the methodology — subject to regulatory review.</div>
+    </div>
+    <div class="quiz-score"></div>
+  </div>
+  <hr>
+  <h2>Primary source to read next</h2>
+  <p><strong>ICO — "Guidance on AI and Data Protection" (2020)</strong><br>
+  <a href="https://ico.org.uk/for-organisations/guide-to-data-protection/key-dp-themes/guidance-on-ai-and-data-protection/" target="_blank">ico.org.uk — AI and Data Protection</a></p>
+  <p>The ICO's practical guidance on implementing GDPR requirements in ML systems — including Article 22 automated decision requirements, data minimisation for training data, and bias testing. Directly applicable to HR models. Pair with the Equality and Human Rights Commission's technical guidance on algorithmic bias in employment.</p>
+  <h2>What comes next</h2>
+  <ul>
+    <li><a href="0024-treasury-accounting.html">← Lesson 24: Treasury &amp; Accounting Models</a></li>
+    <li><a href="0026-security-services-pricing.html">Lesson 26: Security Services Product Pricing →</a></li>
+  </ul>
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — GDPR Article 22 in practice, fairness metrics for employment models, or CRD V MRT classification are all worth discussing further.</p>
+    <p style="margin-top:.5rem;">Lesson 25 · <em>AI/ML in Banking &amp; Finance</em> · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

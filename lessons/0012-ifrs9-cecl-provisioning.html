@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 12: IFRS9 &amp; CECL — Credit Provisioning</title>
+<link rel="stylesheet" href="../assets/styles.css">
+<style>
+  .stage-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0;
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    overflow: hidden;
+    margin: 1.2rem 0;
+  }
+  .stage {
+    padding: 0.9rem;
+    border-right: 1px solid var(--rule);
+    font-family: var(--font-sans);
+    font-size: 0.83rem;
+  }
+  .stage:last-child { border-right: none; }
+  .stage h4 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.4rem;
+    font-weight: 700;
+  }
+  .stage.s1 { background: var(--success-light); }
+  .stage.s1 h4 { color: var(--success); }
+  .stage.s2 { background: #fffbea; }
+  .stage.s2 h4 { color: #8b6914; }
+  .stage.s3 { background: var(--warn-light); }
+  .stage.s3 h4 { color: var(--warn); }
+  .scenario-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.45rem 0;
+    border-bottom: 1px solid var(--rule);
+    font-family: var(--font-sans);
+    font-size: 0.83rem;
+  }
+  .scenario-row:last-child { border-bottom: none; }
+  .sc-weight {
+    width: 52px;
+    font-weight: 700;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .sc-bar { flex: 1; background: var(--rule); height: 8px; border-radius: 4px; }
+  .sc-fill { height: 8px; border-radius: 4px; }
+  .sc-label { min-width: 110px; }
+  .sc-ecl { font-weight: 700; min-width: 55px; text-align: right; }
+  @media (max-width:560px) { .stage-grid { grid-template-columns: 1fr; } .stage { border-right: none; border-bottom: 1px solid var(--rule); } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="lesson-meta">Lesson 12 · Credit Risk</div>
+  <h1>IFRS9 &amp; CECL: Credit Provisioning</h1>
+  <p class="subtitle">
+    How accounting standards moved from incurred loss to expected loss — and why forward-looking ML models now sit at the heart of bank financial reporting.
+  </p>
+
+  <!-- 1 -->
+  <h2>1. The problem IFRS9 solved</h2>
+
+  <p>
+    Before IFRS9, banks provisioned under <strong>IAS 39</strong> using an <em>incurred loss</em> model:
+    a loss was only recognised in the accounts when there was objective evidence that it had already
+    occurred (e.g., a missed payment). During the 2008 crisis, this produced the damning criticism
+    that banks were provisioning "too little, too late" — regulators called provisions "too late,
+    too little, too lumpy."
+  </p>
+
+  <p>
+    <strong>IFRS9</strong> (effective 2018) and its US equivalent <strong>CECL</strong> (Current
+    Expected Credit Loss, ASC 326, effective 2020) both replaced incurred loss with
+    <strong>expected loss</strong> provisioning: recognise the loss <em>before</em> it occurs,
+    based on forward-looking estimates of PD, LGD, and EAD. This brought bank accounting and
+    Basel regulatory credit risk modelling into much closer alignment.
+  </p>
+
+  <!-- 2 -->
+  <h2>2. The IFRS9 three-stage model</h2>
+
+  <p>
+    IFRS9 classifies every financial asset into one of three stages, determining how much expected
+    credit loss (ECL) to recognise:
+  </p>
+
+  <div class="stage-grid">
+    <div class="stage s1">
+      <h4>Stage 1 — Performing</h4>
+      <strong>Trigger:</strong> No significant increase in credit risk (SICR) since origination<br><br>
+      <strong>Provision:</strong> 12-month ECL — expected loss from defaults occurring in the <em>next 12 months only</em><br><br>
+      <strong>Typical accounts:</strong> Recently originated loans, accounts paying on time, low-risk segments
+    </div>
+    <div class="stage s2">
+      <h4>Stage 2 — Under-performing</h4>
+      <strong>Trigger:</strong> SICR — significant deterioration in credit quality since origination<br><br>
+      <strong>Provision:</strong> Lifetime ECL — expected loss over the full remaining life of the instrument<br><br>
+      <strong>Typical accounts:</strong> Accounts with rising PD, watchlist accounts, early arrears
+    </div>
+    <div class="stage s3">
+      <h4>Stage 3 — Non-performing</h4>
+      <strong>Trigger:</strong> Credit-impaired (typically ≥90 days past due, or default under Basel definition)<br><br>
+      <strong>Provision:</strong> Lifetime ECL on credit-impaired basis — plus interest is recognised on net carrying amount only<br><br>
+      <strong>Typical accounts:</strong> Defaulted accounts in workout or write-off
+    </div>
+  </div>
+
+  <div class="callout risk">
+    <div class="callout-label">The cliff edge: Stage 1 → Stage 2</div>
+    The migration from Stage 1 (12-month ECL) to Stage 2 (lifetime ECL) can multiply the
+    provision on a single account by 5–20×. For a portfolio of thousands of mortgages, a mass
+    Stage 2 migration in a recession produces a provision charge that can exceed a quarter's
+    profits. This "cliff edge" is the primary pro-cyclicality concern with IFRS9 — it amplifies
+    bank earnings volatility precisely when the economy is under stress.
+  </div>
+
+  <!-- 3 -->
+  <h2>3. ECL formula — and how it differs from Basel</h2>
+
+  <p>
+    The ECL calculation is structurally identical to Basel expected loss:
+  </p>
+
+  <pre>ECL = PD × LGD × EAD × Discount Factor
+
+For Stage 1 (12-month):    ECL₁₂ = PD₁₂  × LGD × EAD × DF
+For Stage 2 (lifetime):    ECL_LT = Σₜ PDₜ × LGD × EADₜ × DFₜ   (summed over remaining life)</pre>
+
+  <p>
+    But two critical differences from Basel IRB parameters:
+  </p>
+
+  <table>
+    <thead>
+      <tr><th></th><th>Basel IRB</th><th>IFRS9 / CECL</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>PD type</strong></td>
+        <td>Through-the-cycle (TTC) — long-run average, stable across the cycle</td>
+        <td>Point-in-time (PIT) — current conditions and forward expectations incorporated</td>
+      </tr>
+      <tr>
+        <td><strong>LGD type</strong></td>
+        <td>Downturn LGD — stressed, conservative</td>
+        <td>Best estimate LGD — central estimate, not stressed</td>
+      </tr>
+      <tr>
+        <td><strong>Macro scenarios</strong></td>
+        <td>Single scenario (usually not explicit)</td>
+        <td>Multiple probability-weighted scenarios required (see Section 5)</td>
+      </tr>
+      <tr>
+        <td><strong>Purpose</strong></td>
+        <td>Regulatory capital (Pillar 1)</td>
+        <td>Financial accounting — income statement provision charge</td>
+      </tr>
+      <tr>
+        <td><strong>Auditor scrutiny</strong></td>
+        <td>Regulator / model risk team</td>
+        <td>External auditor (Big 4) + regulator + model risk team</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 4 -->
+  <h2>4. Point-in-time PD: the core ML challenge</h2>
+
+  <p>
+    IFRS9 requires a <strong>point-in-time (PIT)</strong> PD — a forward estimate that incorporates
+    the current and expected economic environment, not just the long-run average. This is
+    fundamentally different from the through-the-cycle (TTC) PD used for Basel IRB capital.
+  </p>
+
+  <p>
+    The standard approach: build a <strong>macro-conditional PD model</strong> — a satellite model
+    (as in CCAR, Lesson 8) that translates macro variables (unemployment, GDP, interest rates,
+    house prices) into a PD adjustment factor. The PIT PD is then:
+  </p>
+
+  <pre>PD_PIT = PD_TTC × adjustment_factor(macro_scenario)
+
+For ML: XGBoost / NN satellite model maps macro inputs → PD_PIT directly,
+        trained on historical default rates and concurrent macro observations</pre>
+
+  <p>
+    ML outperforms linear satellite models here for the same reason as in CCAR: non-linear
+    macro-loss relationships, regime-specific sensitivities, and the ability to incorporate
+    a richer macro feature set.
+  </p>
+
+  <!-- 5 -->
+  <h2>5. Forward Looking Information (FLI) — multiple economic scenarios</h2>
+
+  <p>
+    IFRS9 requires banks to incorporate <strong>forward-looking information</strong> in a way that
+    is <em>unbiased</em>: neither overly optimistic nor overly pessimistic. In practice, this means
+    running multiple macro scenarios and weighting the resulting ECLs by scenario probability:
+  </p>
+
+  <div style="background:var(--neutral);border:1px solid var(--rule);border-radius:5px;padding:1rem 1.2rem;margin:1.2rem 0;">
+    <div style="font-family:var(--font-sans);font-size:0.8rem;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:0.75rem;letter-spacing:0.06em;">Example: 3-scenario FLI ECL calculation</div>
+    <div class="scenario-row">
+      <div class="sc-label"><strong>Base case</strong></div>
+      <div class="sc-weight">60%</div>
+      <div class="sc-bar"><div class="sc-fill" style="width:60%;background:var(--accent);"></div></div>
+      <div class="sc-ecl" style="color:var(--accent);">ECL: £12m</div>
+    </div>
+    <div class="scenario-row">
+      <div class="sc-label"><strong>Upside</strong></div>
+      <div class="sc-weight">15%</div>
+      <div class="sc-bar"><div class="sc-fill" style="width:15%;background:var(--success);"></div></div>
+      <div class="sc-ecl" style="color:var(--success);">ECL: £7m</div>
+    </div>
+    <div class="scenario-row">
+      <div class="sc-label"><strong>Downside</strong></div>
+      <div class="sc-weight">20%</div>
+      <div class="sc-bar"><div class="sc-fill" style="width:20%;background:#8b6914;"></div></div>
+      <div class="sc-ecl" style="color:#8b6914;">ECL: £24m</div>
+    </div>
+    <div class="scenario-row">
+      <div class="sc-label"><strong>Severe downside</strong></div>
+      <div class="sc-weight">5%</div>
+      <div class="sc-bar"><div class="sc-fill" style="width:5%;background:var(--warn);"></div></div>
+      <div class="sc-ecl" style="color:var(--warn);">ECL: £58m</div>
+    </div>
+    <div class="scenario-row" style="background:white;margin-top:0.3rem;">
+      <div class="sc-label"><strong>Weighted ECL</strong></div>
+      <div class="sc-weight"></div>
+      <div class="sc-bar"></div>
+      <div class="sc-ecl" style="font-size:1rem;color:var(--ink);">£<strong>17.9m</strong></div>
+    </div>
+    <div style="font-family:var(--font-sans);font-size:0.76rem;color:var(--muted);margin-top:0.4rem;">Weighted ECL = 0.60×12 + 0.15×7 + 0.20×24 + 0.05×58 = 7.2 + 1.05 + 4.8 + 2.9 = £15.95m ≈ £16m</div>
+  </div>
+
+  <p>
+    ML is used for both scenario generation (producing plausible macro paths, as in CCAR) and
+    scenario weighting (assigning probabilities — increasingly using ML-based economic forecasting
+    models rather than pure judgement). The non-linearity of ECL across scenarios is why the
+    weighted ECL (£16m) exceeds the base case ECL (£12m) — severe downside tail scenarios
+    have disproportionate impact.
+  </p>
+
+  <!-- 6 -->
+  <h2>6. SICR — the stage migration trigger</h2>
+
+  <p>
+    <strong>Significant Increase in Credit Risk (SICR)</strong> is the condition that moves an
+    account from Stage 1 to Stage 2. IFRS9 does not define SICR precisely — banks must exercise
+    judgement, subject to audit scrutiny. Common approaches:
+  </p>
+
+  <ul>
+    <li><strong>Quantitative threshold:</strong> PD has doubled and exceeded an absolute threshold (e.g., PD > 1% and PD_current / PD_origination > 2×)</li>
+    <li><strong>30-days-past-due backstop:</strong> IFRS9 includes a rebuttable presumption that 30+ DPD = SICR</li>
+    <li><strong>Watchlist / internal rating migration:</strong> account moved to internal watchlist or below a credit quality grade</li>
+    <li><strong>ML SICR classifier:</strong> train a binary classifier on accounts that subsequently defaulted, using features available at the reference date. Predict SICR probability; trigger Stage 2 above a threshold.</li>
+  </ul>
+
+  <div class="callout info">
+    <div class="callout-label">ML advantage in SICR detection</div>
+    A well-trained ML SICR model detects deterioration earlier than a simple PD threshold —
+    picking up behavioural signals (utilisation trends, payment pattern changes) that precede
+    measurable PD movement. Earlier SICR classification = earlier provision = smoother, less
+    cliff-edge reporting. Auditors and regulators view this favourably as evidence of robust
+    forward-looking assessment.
+  </div>
+
+  <!-- 7 -->
+  <h2>7. CECL vs IFRS9</h2>
+
+  <table>
+    <thead>
+      <tr><th></th><th>IFRS9 (IASB — global)</th><th>CECL (FASB — US GAAP)</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Stage structure</strong></td><td>3 stages (12-month → lifetime)</td><td>No stages — lifetime ECL from origination for all assets</td></tr>
+      <tr><td><strong>Day-1 provision</strong></td><td>12-month ECL for Stage 1 (smaller)</td><td>Lifetime ECL immediately on origination (larger front-loaded provision)</td></tr>
+      <tr><td><strong>Pro-cyclicality</strong></td><td>Moderate — cliff at Stage 1/2 migration</td><td>Higher — larger provisions upfront; bigger hit in origination-heavy periods</td></tr>
+      <tr><td><strong>Management overlays</strong></td><td>Required to be documented and justified</td><td>Required to be documented and justified</td></tr>
+      <tr><td><strong>Jurisdiction</strong></td><td>EU, UK, Asia-Pacific, most non-US markets</td><td>US banks and credit unions</td></tr>
+    </tbody>
+  </table>
+
+  <!-- 8 -->
+  <h2>8. Management overlays and COVID as a case study</h2>
+
+  <p>
+    In Q1–Q2 2020, COVID produced a situation the ECL models were not designed for: economic
+    variables (unemployment, GDP) moved to extreme values at the same time government support
+    schemes (furlough, loan moratoria) prevented the expected default rates from materialising.
+    Models trained on historical data predicted massive defaults; actual defaults remained low.
+  </p>
+
+  <p>
+    Banks responded with large <strong>management overlays</strong> — downward adjustments to
+    model output reflecting the view that government support schemes were suppressing defaults.
+    Then, as the threat receded and defaults remained low, banks reversed these overlays,
+    releasing provisions and boosting profits. Auditors required extensive documentation of:
+  </p>
+  <ul>
+    <li>The basis for the overlay quantum</li>
+    <li>How scenario probabilities were adjusted to reflect policy uncertainty</li>
+    <li>The trigger conditions under which the overlay would be reversed</li>
+  </ul>
+
+  <hr>
+
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+
+    <div class="question">
+      <p>1. Under IFRS9, a performing mortgage with no credit deterioration since origination sits in Stage 1. What ECL does the bank provision?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Lifetime ECL — expected loss over the remaining mortgage term</button>
+        <button class="option" data-correct="true">12-month ECL — only the expected loss from defaults occurring in the next 12 months</button>
+        <button class="option" data-correct="false">Zero — no provision until objective evidence of loss exists</button>
+        <button class="option" data-correct="false">Downturn ECL — using stressed PD and LGD inputs</button>
+      </div>
+      <div class="feedback good">Correct. Stage 1 = 12-month ECL. The bank provisions only for defaults that might occur in the next year — not the full remaining life of the mortgage. This is significantly smaller than lifetime ECL, and is why the Stage 1→2 migration is a large provision cliff.</div>
+      <div class="feedback bad">Stage 1 provisioning = 12-month ECL. Only the expected loss from defaults within the next 12 months is recognised. This is the key difference from Stage 2 (lifetime ECL). For a 25-year mortgage, 12-month ECL might be £400; lifetime ECL could be £4,000. The stage migration cliff is why IFRS9 amplifies provisioning volatility.</div>
+    </div>
+
+    <div class="question">
+      <p>2. Why does IFRS9 require point-in-time (PIT) PD rather than the through-the-cycle (TTC) PD used in Basel IRB?</p>
+      <div class="options">
+        <button class="option" data-correct="false">TTC PD is too conservative, overstating provisions</button>
+        <button class="option" data-correct="true">Accounting requires a current, forward-looking best estimate — not a long-run average that ignores today's economic conditions</button>
+        <button class="option" data-correct="false">PIT PD is easier to compute from loan tape data</button>
+        <button class="option" data-correct="false">Regulators prohibit the use of TTC models in accounting</button>
+      </div>
+      <div class="feedback good">Correct. IFRS9's core principle is forward-looking, unbiased estimation. TTC PD smooths across the economic cycle — it changes little whether the economy is booming or in recession. PIT PD moves with conditions: it rises in recessions and falls in expansions, making provisions more responsive and timely. This is the accounting intent — to reflect the current risk of loss, not a long-run average.</div>
+      <div class="feedback bad">IFRS9 requires provisions to reflect the current expected loss given the current and forecast economic environment. TTC PD is specifically designed to be stable across the cycle — useful for capital (which should be stable) but wrong for accounting (which should reflect current conditions). PIT PD rises in downturns (earlier provisions) and falls in upswings, which is exactly the timing IFRS9 intends.</div>
+    </div>
+
+    <div class="question">
+      <p>3. A bank runs three ECL scenarios: Base (60%, ECL £10m), Upside (20%, ECL £6m), Downside (20%, ECL £35m). What is the probability-weighted ECL?</p>
+      <div class="options">
+        <button class="option" data-correct="false">£17m (simple average of the three)</button>
+        <button class="option" data-correct="false">£10m (base case dominates)</button>
+        <button class="option" data-correct="true">£14.2m</button>
+        <button class="option" data-correct="false">£35m (downside must be used for conservatism)</button>
+      </div>
+      <div class="feedback good">Correct. Weighted ECL = 0.60 × £10m + 0.20 × £6m + 0.20 × £35m = £6m + £1.2m + £7m = £14.2m. Note that £14.2m exceeds the base case (£10m) because ECL is non-linear in the macro — the tail downside scenario has a disproportionately large ECL that pulls the weighted average above the base. This non-linearity is why the multi-scenario approach produces a different result from simply using the base case.</div>
+      <div class="feedback bad">Weighted ECL = Σ P(scenario) × ECL(scenario) = 0.60 × 10 + 0.20 × 6 + 0.20 × 35 = 6 + 1.2 + 7 = £14.2m. The result exceeds the base case because ECL is non-linear in macro inputs — the downside scenario ECL (£35m) is much larger relative to its probability (20%) than the upside reduction. This non-linearity is the reason IFRS9 mandates multi-scenario calculation rather than simply using the base case.</div>
+    </div>
+
+    <div class="question">
+      <p>4. What made the COVID-19 period uniquely challenging for IFRS9 models — and how did banks respond?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Banks could not run their models because credit bureaux stopped providing data</button>
+        <button class="option" data-correct="false">IFRS9 was temporarily suspended by accounting standard-setters</button>
+        <button class="option" data-correct="true">Models predicted large defaults based on extreme macro inputs, but government support suppressed actual defaults — banks applied downward management overlays to reduce provisions</button>
+        <button class="option" data-correct="false">All mortgages automatically migrated to Stage 3 under payment moratoria</button>
+      </div>
+      <div class="feedback good">Correct. Models were trained on historical relationships between macro variables and defaults. COVID broke this relationship: macro inputs (unemployment, GDP) hit model-extreme levels, but government support (furlough, moratoria, bounce-back loans) prevented the expected defaults from occurring. Banks applied downward overlays — documented as reflecting "policy support suppressing defaults" — and then reversed these overlays as the threat receded. Auditors required detailed documentation of the overlay rationale and reversal triggers.</div>
+      <div class="feedback bad">COVID produced a model failure: the macro-ECL relationship broke down because government intervention suppressed defaults despite extreme macro deterioration. Banks faced the choice of booking huge model-implied provisions (possibly misleading given the support schemes) or applying downward overlays. Most applied overlays, which required documentation of: the quantum, the basis, and the trigger for reversal. This was one of the largest model governance challenges in IFRS9's short history.</div>
+    </div>
+
+    <div class="quiz-score"></div>
+  </div>
+
+  <hr>
+
+  <h2>Primary source to read next</h2>
+  <p>
+    <strong>IASB — IFRS9 Financial Instruments (2014, effective 2018), Section 5.5: Impairment</strong><br>
+    <a href="https://www.ifrs.org/issued-standards/list-of-standards/ifrs-9-financial-instruments/" target="_blank">ifrs.org — IFRS9 standard</a>
+  </p>
+  <p>
+    Section 5.5 (impairment) is the authoritative text — 40 pages. Read the three-stage criteria
+    and the forward-looking requirements. Pair with the EBA Guidelines on credit institutions' credit
+    risk management practices for IFRS9, which translates the standard into banking practice.
+  </p>
+
+  <h2>What comes next</h2>
+  <ul>
+    <li><a href="0011-listwise-mle-ranking.html">← Lesson 11: Listwise MLE</a></li>
+    <li><a href="0013-ccr-cva-pfe.html">Lesson 13: Counterparty Credit Risk — CVA &amp; PFE →</a></li>
+  </ul>
+
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — the SICR definition, PIT vs TTC conversion, or management overlay governance are all worth discussing further.</p>
+    <p style="margin-top:0.5rem;">Lesson 12 of the <em>AI/ML in Banking &amp; Finance</em> course · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

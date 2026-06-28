@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 4: Credit Scoring with Alternative Data</title>
+<link rel="stylesheet" href="../assets/styles.css">
+<style>
+  .data-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin: 1.2rem 0;
+  }
+  .data-card {
+    background: white;
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    padding: 0.9rem 1rem;
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+  }
+  .data-card h4 {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    margin-bottom: 0.4rem;
+  }
+  .data-card ul { margin: 0; padding-left: 1.1rem; }
+  .data-card li { margin-bottom: 0.2rem; }
+  .data-card.alt { border-left: 3px solid var(--accent); }
+  .data-card.trad { border-left: 3px solid #aaa; }
+  .data-card.risk { border-left: 3px solid var(--warn); }
+  @media (max-width: 560px) { .data-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="lesson-meta">Lesson 04 · Credit Risk</div>
+  <h1>Credit Scoring with Alternative Data</h1>
+  <p class="subtitle">
+    How ensemble methods unlock thin-file borrowers — and the fair lending risk hiding inside every new feature.
+  </p>
+
+  <!-- 1 -->
+  <h2>1. The credit scoring problem</h2>
+
+  <p>
+    Credit scoring sits at the top of the credit decision funnel: before a loan is originated, the bank
+    must decide whether to lend, at what rate, and at what limit. Scoring models assign each applicant
+    a number that maps to credit risk, enabling automated decisions at scale.
+  </p>
+
+  <p>
+    Classical credit scoring used a narrow feature set: payment history, outstanding balances, length
+    of credit history, types of credit, and new credit inquiries (the FICO five-factor framework).
+    Ensemble ML models shatter this constraint — they can process <strong>hundreds of features</strong>
+    from multiple data sources, finding signals invisible to a logistic scorecard.
+  </p>
+
+  <div class="callout info">
+    <div class="callout-label">The thin-file problem</div>
+    Around 45 million US adults are "credit invisible" — they have no, or too little, credit history
+    for traditional scoring. Alternative data promises to extend credit access to thin-file and
+    no-file borrowers. The opportunity is real; so is the risk of encoding discrimination into the
+    model in new ways.
+  </div>
+
+  <!-- 2 -->
+  <h2>2. Data taxonomy: traditional vs alternative</h2>
+
+  <div class="data-grid">
+    <div class="data-card trad">
+      <h4>Traditional bureau data</h4>
+      <ul>
+        <li>Payment history (on-time, late, delinquent)</li>
+        <li>Revolving utilisation rates</li>
+        <li>Number and age of tradelines</li>
+        <li>Hard inquiry count (new credit seeking)</li>
+        <li>Derogatory marks (bankruptcies, collections)</li>
+      </ul>
+    </div>
+    <div class="data-card alt">
+      <h4>Alternative: transaction data</h4>
+      <ul>
+        <li>Monthly income / spending patterns</li>
+        <li>Merchant category mix (gambling, healthcare, etc.)</li>
+        <li>Payday loan usage, cash advance frequency</li>
+        <li>Rent and utility payment history</li>
+        <li>Account balance volatility, overdraft frequency</li>
+      </ul>
+    </div>
+    <div class="data-card alt">
+      <h4>Alternative: behavioural / digital</h4>
+      <ul>
+        <li>App usage patterns (loan-app navigation)</li>
+        <li>Device metadata (OS version, phone model)</li>
+        <li>Time-of-day application patterns</li>
+        <li>Form fill speed and corrections</li>
+        <li>Social media activity (some jurisdictions)</li>
+      </ul>
+    </div>
+    <div class="data-card alt">
+      <h4>Alternative: telco / utility</h4>
+      <ul>
+        <li>Mobile phone payment history</li>
+        <li>Data/voice plan type and tenure</li>
+        <li>Electricity / gas payment regularity</li>
+        <li>Geolocation consistency (work/home patterns)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 3 -->
+  <h2>3. Why ensembles outperform scorecards on rich feature sets</h2>
+
+  <p>
+    With a small, curated feature set, the interpretability advantage of logistic regression is worth
+    the discrimination trade-off. As the feature space grows to hundreds of variables, the ensemble
+    advantages compound:
+  </p>
+
+  <ul>
+    <li>
+      <strong>Automatic interaction detection:</strong> transaction mix × balance volatility ×
+      income regularity captures distress signals no human analyst would construct manually
+    </li>
+    <li>
+      <strong>Non-linear thresholds:</strong> spending on gambling sites below £50/month may be
+      harmless; above £200/month in a low-income account is a default predictor — a cliff the
+      logistic model cannot represent without manual binning
+    </li>
+    <li>
+      <strong>Robustness to irrelevant features:</strong> Random Forest's feature sampling at each
+      split and XGBoost's regularisation both act as automatic feature selectors, preventing
+      noise features from degrading performance
+    </li>
+    <li>
+      <strong>Missing value handling:</strong> tree-based models handle missing features via surrogate
+      splits, reducing the need for imputation that can introduce its own bias
+    </li>
+  </ul>
+
+  <!-- 4 -->
+  <h2>4. Feature importance and selection</h2>
+
+  <p>
+    With hundreds of features, interpretability requires deliberate tools. Three are standard:
+  </p>
+
+  <h3>Gain-based importance (XGBoost native)</h3>
+  <p>
+    Ranks features by the average reduction in loss when each feature is used as a split. Fast and
+    built-in, but biased toward high-cardinality features (continuous variables get more split
+    opportunities than binary ones). Use for initial ranking; do not rely on it alone.
+  </p>
+
+  <h3>Permutation importance</h3>
+  <p>
+    Shuffle each feature's values and measure the drop in model performance. Model-agnostic, less
+    biased than gain importance, and more interpretable ("removing this feature costs 2pp Gini").
+    Computationally heavier; worth running on the final feature set.
+  </p>
+
+  <h3>SHAP feature importance</h3>
+  <p>
+    Average |SHAP value| per feature across the dataset — the most rigorous of the three.
+    SHAP also enables individual-level decomposition for adverse action explanations, which is required
+    by consumer protection law. The SHAP beeswarm plot (distribution of SHAP values per feature
+    across all applicants) is now standard in model validation packs.
+  </p>
+
+  <div class="callout insight">
+    <div class="callout-label">Practical note</div>
+    In a real credit scoring engagement, you will typically start with 200–400 candidate features,
+    run SHAP importance and correlation analysis, and whittle to 20–40 variables for the final model.
+    The target: maximum discrimination with minimum feature count, to reduce maintenance burden and
+    proxy variable risk.
+  </div>
+
+  <!-- 5 -->
+  <h2>5. The proxy variable problem</h2>
+
+  <p>
+    This is the central fair lending risk in ML credit scoring. <strong>Proxy variables</strong> are
+    features that are correlated with a protected characteristic (race, gender, religion, national
+    origin, age) even though they do not mention it directly. Feeding them into a model encodes
+    discrimination without a single discriminatory intent.
+  </p>
+
+  <table>
+    <thead>
+      <tr><th>Feature</th><th>Proxy risk</th><th>Mechanism</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Postcode / zip code</td>
+        <td>Race / ethnicity</td>
+        <td>Residential segregation means postcode correlates strongly with race in many cities</td>
+      </tr>
+      <tr>
+        <td>Merchant categories (e.g., certain grocery chains)</td>
+        <td>Race / ethnicity</td>
+        <td>Shopping patterns differ systematically by demographic group</td>
+      </tr>
+      <tr>
+        <td>Phone model / OS</td>
+        <td>Income, indirectly race</td>
+        <td>Device ownership correlates with income, which correlates with protected characteristics</td>
+      </tr>
+      <tr>
+        <td>App usage time-of-day</td>
+        <td>Occupation type, indirectly age / class</td>
+        <td>Shift workers apply at different hours than office workers</td>
+      </tr>
+      <tr>
+        <td>Payday loan usage</td>
+        <td>Income, indirectly race</td>
+        <td>Disproportionate use in lower-income and minority communities</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 6 -->
+  <h2>6. Fair lending governance: disparate impact analysis</h2>
+
+  <p>
+    In the US, the <strong>Equal Credit Opportunity Act (ECOA)</strong> and <strong>Fair Housing Act</strong>
+    prohibit both intentional discrimination (<em>disparate treatment</em>) and facially neutral
+    policies that produce discriminatory outcomes (<em>disparate impact</em>). The UK equivalent is
+    the <strong>Equality Act 2010</strong>. GDPR Article 22 adds a right not to be subject to solely
+    automated decisions with significant effects.
+  </p>
+
+  <p>
+    For ML credit models, the standard governance response is a <strong>disparate impact analysis</strong>:
+  </p>
+
+  <ol>
+    <li>Obtain protected class data (or infer it using BISG — Bayesian Improved Surname Geocoding)</li>
+    <li>Compare approval rates and pricing across protected groups</li>
+    <li>Apply the <strong>four-fifths rule</strong>: if the approval rate for a protected group is less than 80% of the rate for the highest-approved group, prima facie disparate impact exists</li>
+    <li>Test whether removing suspected proxy features reduces the disparity</li>
+    <li>Document the business necessity justification for any remaining disparity</li>
+  </ol>
+
+  <div class="callout risk">
+    <div class="callout-label">The explainability–fairness tension</div>
+    Removing proxy variables reduces disparate impact but also reduces model Gini — you lose
+    predictive signal. Banks must document this trade-off explicitly. The regulator expects to see:
+    (a) what features were removed for fairness reasons, (b) what Gini was sacrificed, and
+    (c) evidence the remaining model still meets credit policy objectives. Governance documentation
+    is as important as the model itself.
+  </div>
+
+  <!-- 7 -->
+  <h2>7. Model governance for credit scoring ML</h2>
+
+  <table>
+    <thead>
+      <tr><th>Governance requirement</th><th>ML-specific consideration</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Feature inventory</strong></td>
+        <td>Every feature must be documented: source, definition, refresh frequency, missing value rate. Alternative data sources often have unstable feeds — a feature available 98% of the time in development may degrade in production.</td>
+      </tr>
+      <tr>
+        <td><strong>Adverse action notices</strong></td>
+        <td>Consumer protection law requires applicants to receive the top reasons for denial. SHAP values must be translated into human-readable reasons and reviewed for regulatory acceptability.</td>
+      </tr>
+      <tr>
+        <td><strong>Population Stability Index (PSI)</strong></td>
+        <td>Monitors distributional shift between development population and production. PSI &gt; 0.25 typically triggers model review. Alternative data features are particularly prone to PSI drift (e.g., if a data supplier changes methodology).</td>
+      </tr>
+      <tr>
+        <td><strong>Disparate impact monitoring</strong></td>
+        <td>Not a one-time check — must be monitored quarterly in production as the population mix and feature distributions evolve.</td>
+      </tr>
+      <tr>
+        <td><strong>Model card</strong></td>
+        <td>A structured document (Google's Model Card format, or regulatory equivalent) capturing intended use, performance metrics, fairness assessments, and known limitations. Required by some regulators and increasingly expected by all.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+
+    <div class="question">
+      <p>1. A credit scoring model uses postcode as a feature. What specific fair lending risk does this introduce?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Overfitting due to high feature cardinality</button>
+        <button class="option" data-correct="true">Proxy discrimination — postcode correlates with race due to residential segregation</button>
+        <button class="option" data-correct="false">Data privacy breach under GDPR Article 9</button>
+        <button class="option" data-correct="false">Calibration error at the postcode segment level</button>
+      </div>
+      <div class="feedback good">Correct. Postcode is a classic proxy variable for race/ethnicity in many markets. Residential segregation means geographic location carries demographic signal, and a model using postcode may produce disparate impact even without any intent to discriminate.</div>
+      <div class="feedback bad">This is the proxy variable problem. Postcode correlates with race/ethnicity due to residential segregation — using it in the model can produce disparate impact outcomes even though race is never explicitly included. Regulators specifically flag geographic features as proxy risks.</div>
+    </div>
+
+    <div class="question">
+      <p>2. The four-fifths rule flags disparate impact when a protected group's approval rate falls below what threshold relative to the highest-approved group?</p>
+      <div class="options">
+        <button class="option" data-correct="false">50%</button>
+        <button class="option" data-correct="false">70%</button>
+        <button class="option" data-correct="true">80%</button>
+        <button class="option" data-correct="false">90%</button>
+      </div>
+      <div class="feedback good">Correct. The four-fifths (80%) rule: if a protected group's selection rate is less than 80% of the highest group's rate, prima facie adverse impact is indicated. This triggers investigation and justification, not automatic disqualification of the model.</div>
+      <div class="feedback bad">The four-fifths rule sets the threshold at 80%. If any protected group's approval rate is less than 80% of the highest-approved group's rate, disparate impact analysis is triggered. It is a flag for investigation, not an automatic model disqualifier.</div>
+    </div>
+
+    <div class="question">
+      <p>3. SHAP values are used in credit scoring adverse action notices to:</p>
+      <div class="options">
+        <button class="option" data-correct="false">Recalibrate the model's output probability</button>
+        <button class="option" data-correct="false">Replace the need for independent model validation</button>
+        <button class="option" data-correct="true">Identify the top features driving each denial for human-readable decline reasons</button>
+        <button class="option" data-correct="false">Remove proxy variables from the feature set automatically</button>
+      </div>
+      <div class="feedback good">Correct. SHAP decomposes each prediction into per-feature contributions. For a denial, the features with the largest positive SHAP values (pushing toward high risk) become the adverse action reasons — translated into consumer-friendly language like "high credit card utilisation" or "insufficient payment history."</div>
+      <div class="feedback bad">SHAP enables adverse action notices by identifying which features drove a specific denial. The top contributors (highest |SHAP|) are translated into human-readable decline reasons required by ECOA. This is why SHAP has become the de facto explainability standard for consumer credit ML models.</div>
+    </div>
+
+    <div class="question">
+      <p>4. Population Stability Index (PSI) > 0.25 in production monitoring indicates:</p>
+      <div class="options">
+        <button class="option" data-correct="false">The model's Gini has deteriorated below 50%</button>
+        <button class="option" data-correct="false">The model is overfitting to the training sample</button>
+        <button class="option" data-correct="true">Significant population shift between development and current production data</button>
+        <button class="option" data-correct="false">The alternative data feed has failed for more than 25% of accounts</button>
+      </div>
+      <div class="feedback good">Correct. PSI measures the distributional shift of the model score (or individual features) between the development population and the current population. PSI > 0.25 is the conventional trigger for model review — the population has drifted enough that the model's development assumptions may no longer hold.</div>
+      <div class="feedback bad">PSI (Population Stability Index) measures distributional shift. It compares the score distribution at development time vs. the current production population. PSI > 0.25 = significant shift, typically triggering model review. Alternative data features are especially prone to PSI drift if data supplier methodology changes.</div>
+    </div>
+
+    <div class="quiz-score"></div>
+  </div>
+
+  <hr>
+
+  <h2>Primary source to read next</h2>
+  <p>
+    <strong>CFPB: "Using Alternative Data in Credit Underwriting" (2017)</strong><br>
+    <a href="https://www.consumerfinance.gov/about-us/blog/using-alternative-data-underwriting/" target="_blank">consumerfinance.gov — Alternative Data in Underwriting</a>
+  </p>
+  <p>
+    The US regulator's own view on the promise and risks of alternative data. Compact, practical,
+    and directly relevant to the fair lending governance section of this lesson.
+    Follow with Molnar's IML book Chapter 9 (SHAP) for the explainability mechanics.
+  </p>
+
+  <h2>What comes next</h2>
+  <p>
+    We move from Credit Risk to <strong>Market Risk</strong>. Lesson 5 covers VaR and Expected Shortfall —
+    why parametric approaches fail on fat-tailed return distributions, and how ML (GARCH hybrids, neural
+    network quantile regression) improves tail risk estimation.
+  </p>
+  <ul>
+    <li><a href="0003-ead-forecasting.html">← Lesson 3: EAD Forecasting</a></li>
+    <li><a href="0005-var-es-market-risk.html">Lesson 5: VaR &amp; ES in Market Risk →</a></li>
+  </ul>
+
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — the proxy variable problem, disparate impact analysis, or PSI interpretation are all worth discussing further.</p>
+    <p style="margin-top:0.5rem;">Lesson 4 of the <em>AI/ML in Banking &amp; Finance</em> course · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

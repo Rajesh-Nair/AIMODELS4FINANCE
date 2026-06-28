@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 6: FRTB &amp; NMRF — ML for Illiquid Risk Factors</title>
+<link rel="stylesheet" href="../assets/styles.css">
+<style>
+  .rpo-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin: 1.2rem 0;
+  }
+  .rpo-card {
+    border-radius: 5px;
+    padding: 0.9rem 1rem;
+    font-family: var(--font-sans);
+    font-size: 0.84rem;
+  }
+  .rpo-card h4 {
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 0.5rem;
+  }
+  .rpo-card.green { background: var(--success-light); border-left: 3px solid var(--success); }
+  .rpo-card.green h4 { color: var(--success); }
+  .rpo-card.red   { background: var(--warn-light);    border-left: 3px solid var(--warn); }
+  .rpo-card.red h4 { color: var(--warn); }
+  .rpo-card ul { margin: 0; padding-left: 1.1rem; }
+  .rpo-card li { margin-bottom: 0.2rem; }
+  @media (max-width:560px) { .rpo-grid { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="lesson-meta">Lesson 06 · Market Risk</div>
+  <h1>FRTB &amp; NMRF: ML for Illiquid Risk Factors</h1>
+  <p class="subtitle">
+    When market data is too sparse to model statistically — and how ML builds bridges from liquid to illiquid.
+  </p>
+
+  <!-- 1 -->
+  <h2>1. The FRTB modellability problem</h2>
+
+  <p>
+    Under <a href="https://www.bis.org/bcbs/publ/d457.htm" target="_blank">FRTB's Internal Models Approach</a>,
+    every risk factor in a bank's trading book must be classified as either
+    <strong>modellable</strong> or <strong>non-modellable</strong>. The distinction carries enormous
+    capital consequences — and it is where ML provides its most distinctive value in market risk.
+  </p>
+
+  <p>
+    A risk factor is <strong>modellable</strong> if it passes the <strong>Real Price Observations (RPO) test</strong>:
+  </p>
+
+  <ul>
+    <li>At least <strong>24 verifiable price observations per year</strong> from actual transactions or committed quotes</li>
+    <li>At least <strong>one observation per month</strong> — gaps longer than a month disqualify it</li>
+    <li>Observations must be from arm's-length market activity, not internal valuations</li>
+  </ul>
+
+  <p>
+    Any risk factor failing this test is a <strong>Non-Modellable Risk Factor (NMRF)</strong>.
+    Banks with complex, illiquid, or exotic books can have thousands of NMRFs.
+  </p>
+
+  <!-- 2 -->
+  <h2>2. Why NMRFs are a capital problem</h2>
+
+  <p>
+    Capital treatment diverges sharply between modellable and non-modellable risk factors:
+  </p>
+
+  <table>
+    <thead>
+      <tr><th></th><th>Modellable (IMA)</th><th>Non-Modellable (NMRF)</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Capital measure</strong></td>
+        <td>ES at 97.5%, 10-day horizon from historical simulation</td>
+        <td>Stress Scenario (SES): worst loss from a specified extreme stress event per risk factor</td>
+      </tr>
+      <tr>
+        <td><strong>Diversification benefit</strong></td>
+        <td>Full portfolio diversification recognised within risk class</td>
+        <td>Limited aggregation — NMRFs from different risk classes are summed with only partial netting</td>
+      </tr>
+      <tr>
+        <td><strong>Capital level</strong></td>
+        <td>Risk-reflective; can be low for well-hedged positions</td>
+        <td>Conservative by design; often 2–5× higher than equivalent modellable charge</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout risk">
+    <div class="callout-label">Commercial impact</div>
+    A trading desk with significant NMRF exposure faces a punitive capital charge on those positions.
+    This directly reduces the return-on-equity of that business — and drives banks to either
+    (a) exit illiquid markets, (b) hedge NMRF exposures into modellable proxies, or (c) invest in
+    ML techniques to improve data coverage and narrow the NMRF list. Option (c) is where the ML opportunity sits.
+  </div>
+
+  <!-- 3 -->
+  <h2>3. What kinds of risk factors become NMRFs?</h2>
+
+  <div class="rpo-grid">
+    <div class="rpo-card green">
+      <h4>Typically modellable</h4>
+      <ul>
+        <li>G10 FX spot rates (EUR/USD, GBP/USD, etc.)</li>
+        <li>On-the-run government bond yields</li>
+        <li>Major equity index levels (S&amp;P 500, FTSE 100)</li>
+        <li>Liquid commodity benchmarks (WTI, Brent, gold)</li>
+        <li>ATM implied volatility for major equity indices</li>
+      </ul>
+    </div>
+    <div class="rpo-card red">
+      <h4>Often non-modellable</h4>
+      <ul>
+        <li>Emerging market FX crosses (e.g., USD/NGN, USD/KES)</li>
+        <li>Long-dated or exotic volatility surface points (e.g., 10y swaption smile)</li>
+        <li>Single-name CDS spreads for illiquid corporates</li>
+        <li>Bespoke commodity grades / locations</li>
+        <li>Correlation risk factors (e.g., equity-credit correlation)</li>
+        <li>Basis risks (e.g., on-the-run vs off-the-run spread for old bonds)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 4 -->
+  <h2>4. The ML imputation approach</h2>
+
+  <p>
+    The core idea: illiquid risk factors do not move independently of the liquid universe.
+    An EM FX rate, an exotic vol surface point, or an illiquid credit spread is correlated
+    — sometimes strongly — with liquid factors that <em>do</em> pass the RPO test.
+    ML can learn these relationships and use them to:
+  </p>
+
+  <ol>
+    <li><strong>Impute the illiquid factor's historical time series</strong>, effectively synthesising the missing RPOs and potentially making it modellable</li>
+    <li><strong>Represent the NMRF in terms of modellable factors</strong>, shifting its capital treatment from NMRF-SES to the IMA charge with a residual basis risk add-on</li>
+  </ol>
+
+  <h3>Approach 1: PCA / factor decomposition</h3>
+  <p>
+    Decompose the universe of modellable risk factors into principal components. Map the illiquid
+    factor onto the common factor space using a regression (linear or ML). The fraction of variance
+    unexplained by the common factors = the residual basis risk, treated as a residual NMRF.
+    The better the mapping, the smaller the residual.
+  </p>
+
+  <pre>NMRF(illiquid FX) ≈ β₁·PC₁(EM FX basket)
+                   + β₂·PC₂(DM FX vol)
+                   + β₃·macro_factor
+                   + ε(residual basis)
+
+Residual ε → still NMRF, but now small
+Explained portion → modellable IMA charge</pre>
+
+  <h3>Approach 2: Cross-asset regression (ML)</h3>
+  <p>
+    Train XGBoost or a neural network on the joint history of a cluster of liquid proxies
+    to predict the illiquid factor's returns. The model learns non-linear cross-asset relationships
+    — e.g., that a particular EM FX rate responds asymmetrically to USD moves during risk-off
+    periods — that a linear PCA model misses.
+  </p>
+
+  <h3>Approach 3: Neural vol surface completion</h3>
+  <p>
+    Implied volatility surfaces have a known structure: they must be arbitrage-free and smooth.
+    A neural network can learn the latent structure of the vol surface (e.g., via
+    <strong>Variational Autoencoders</strong> on liquid surface points) and complete sparse or
+    missing tenors/strikes. This is directly applicable to long-dated swaption or equity vol NMRFs.
+  </p>
+
+  <div class="callout info">
+    <div class="callout-label">What the regulator accepts</div>
+    Imputation reduces the NMRF list but does not eliminate it. The residual basis between the
+    imputed and actual risk factor — the ε term — must still be assessed for its NMRF status.
+    Regulators expect imputation methodology to be independently validated and documented.
+    The ML model used for imputation is itself a model risk-governed model.
+  </div>
+
+  <!-- 5 -->
+  <h2>5. Basis risk: the limitation of imputation</h2>
+
+  <p>
+    The fundamental risk in any imputation approach is <strong>basis risk</strong>: the imputed
+    factor may track the actual illiquid factor reasonably well under normal conditions but
+    diverge sharply in stress. This is precisely the scenario FRTB capital is designed to cover.
+  </p>
+
+  <p>
+    A concrete example: an EM bank uses liquid EM FX basket returns to impute the daily return
+    of a thinly traded local currency pair. In normal markets, the correlation is 0.85. During
+    a local sovereign crisis, the pair dislocates from the basket — correlation drops to 0.2
+    for several months. The capital charge calculated using the imputed series dramatically
+    underestimates the true risk during that period.
+  </p>
+
+  <div class="callout risk">
+    <div class="callout-label">Model risk for NMRF imputation</div>
+    Validators must stress-test the imputation model against historical dislocation episodes.
+    Standard tests: (1) remove the illiquid factor from the imputation feature set and measure
+    R² degradation; (2) measure correlation stability across market regimes; (3) compare imputed
+    vs actual on any historical periods where both are available. Failure on regime-conditional
+    correlation is the most common validation finding for NMRF imputation models.
+  </div>
+
+  <!-- 6 -->
+  <h2>6. Governance: the NMRF inventory</h2>
+
+  <p>
+    Banks under FRTB IMA must maintain a live <strong>NMRF inventory</strong> — a list of all
+    risk factors, their RPO counts, and their modellability status. This inventory must be:
+  </p>
+
+  <ul>
+    <li>Updated at least monthly as new RPOs are collected or factors become illiquid</li>
+    <li>Reviewed by risk management and attested by the CRO / CFO in the capital report</li>
+    <li>Subject to regulatory audit — the supervisor can challenge any modellability classification</li>
+  </ul>
+
+  <p>
+    ML-based imputation models that affect modellability status require model risk approval
+    <em>before</em> they can be used to reclassify a factor from NMRF to modellable. This creates
+    a tight loop between the model risk team, the trading desk's quant team, and the FRTB capital
+    calculation team.
+  </p>
+
+  <hr>
+
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+
+    <div class="question">
+      <p>1. What is the minimum number of Real Price Observations (RPOs) required per year for a risk factor to be modellable under FRTB?</p>
+      <div class="options">
+        <button class="option" data-correct="false">12 — one per month minimum</button>
+        <button class="option" data-correct="true">24 — with at least one per month</button>
+        <button class="option" data-correct="false">52 — one per week minimum</button>
+        <button class="option" data-correct="false">250 — one per trading day</button>
+      </div>
+      <div class="feedback good">Correct. Basel requires 24 RPOs per year — roughly two per month on average — with no monthly gap. Both conditions must be met. The source must be verifiable arm's-length transactions or committed quotes, not internal marks.</div>
+      <div class="feedback bad">The RPO test requires 24 observations per year and at least one per month. Falling below either threshold makes the factor non-modellable. This is a strict requirement — many corporate credit spreads or exotic vol points fail it easily.</div>
+    </div>
+
+    <div class="question">
+      <p>2. Why is NMRF capital generally higher than the equivalent IMA capital charge?</p>
+      <div class="options">
+        <button class="option" data-correct="false">NMRF uses a 99.9% confidence level instead of 97.5%</button>
+        <button class="option" data-correct="true">NMRF uses a stress scenario charge and offers limited cross-NMRF diversification benefit</button>
+        <button class="option" data-correct="false">NMRF requires a 20-day horizon instead of 10-day</button>
+        <button class="option" data-correct="false">NMRF capital is calculated by the regulator, not the bank</button>
+      </div>
+      <div class="feedback good">Correct. NMRFs use a Stress Scenario (SES) charge — the worst loss from a specified extreme stress — and limited diversification between different NMRFs is recognised. This is designed to be conservative, reflecting the model uncertainty inherent in factors without sufficient price history.</div>
+      <div class="feedback bad">The NMRF capital charge is the Stress Scenario (SES): the bank must calculate the loss from a stress event specific to each risk factor. Additionally, NMRFs from different risk classes can only be partially aggregated — you lose most of the diversification benefit that modellable factors enjoy under the IMA ES calculation.</div>
+    </div>
+
+    <div class="question">
+      <p>3. A bank uses PCA to decompose its modellable EM FX factors, then regresses an illiquid EM FX pair onto those PCs with R² = 0.78. What happens to the unexplained 22%?</p>
+      <div class="options">
+        <button class="option" data-correct="false">It is ignored — R² above 0.75 is sufficient for full modellability</button>
+        <button class="option" data-correct="false">It is absorbed into the IMA ES calculation automatically</button>
+        <button class="option" data-correct="true">It remains as a residual basis risk — still treated as an NMRF with its own stress scenario charge</button>
+        <button class="option" data-correct="false">It triggers a model rejection by the regulator</button>
+      </div>
+      <div class="feedback good">Correct. The explained 78% can be mapped to the IMA charge via the modellable factors. The residual 22% variance that the factor model cannot explain remains as basis risk — still an NMRF with its own SES charge. The goal of imputation is to minimise this residual, not eliminate the NMRF classification entirely for most factors.</div>
+      <div class="feedback bad">Imputation decomposes the NMRF into a modellable component and a residual. The explained portion uses IMA capital treatment. The unexplained residual (the 22%) is the basis risk — it remains an NMRF and carries its own stress scenario charge. Even good imputation models leave a residual NMRF; the goal is to make it small.</div>
+    </div>
+
+    <div class="question">
+      <p>4. What is the primary model risk concern for ML-based NMRF imputation models under stress conditions?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Overfitting to training data resulting in high in-sample R²</button>
+        <button class="option" data-correct="false">Computational cost of running the model on large portfolios</button>
+        <button class="option" data-correct="true">Basis risk blow-out — correlation between imputed and actual factor collapses during market dislocations</button>
+        <button class="option" data-correct="false">Regulatory non-approval due to complexity of the imputation model</button>
+      </div>
+      <div class="feedback good">Correct. Correlations that hold in normal markets often break down under stress — this is called correlation breakdown or basis blow-out. An NMRF imputed using liquid proxies in calm markets may become highly inaccurate precisely during the stress events the capital charge is designed to capture. Validation must test imputation quality across regime changes.</div>
+      <div class="feedback bad">The core risk is basis blow-out: in a stress event, the illiquid factor dislocates from its liquid proxies. A model calibrated on normal-market correlations (R² = 0.85 in calm periods) may have correlation near 0 during the very stress scenario driving capital. Validators stress-test imputation models against historical dislocation episodes specifically for this reason.</div>
+    </div>
+
+    <div class="quiz-score"></div>
+  </div>
+
+  <hr>
+
+  <h2>Primary source to read next</h2>
+  <p>
+    <strong>BCBS d457 — FRTB Final Standard, Section D: Non-modellable risk factors (paras 183–186)</strong><br>
+    <a href="https://www.bis.org/bcbs/publ/d457.htm" target="_blank">bis.org/bcbs/publ/d457.htm</a>
+  </p>
+  <p>
+    Read paragraphs 183–186 on NMRF definition and the SES calculation. Short but precise. Pair with
+    a Risk.net article on FRTB NMRF challenges for the practitioner view on ML imputation approaches.
+  </p>
+
+  <h2>What comes next</h2>
+  <p>
+    Lesson 7 covers <strong>Algorithmic Trading &amp; ML Signal Generation</strong> — how feature
+    selection chooses from hundreds of indicators, walk-forward validation prevents look-ahead bias,
+    and what model risk looks like on a live trading desk.
+  </p>
+  <ul>
+    <li><a href="0005-var-es-market-risk.html">← Lesson 5: VaR &amp; ES</a></li>
+    <li><a href="0007-algo-trading-signals.html">Lesson 7: Algo Trading &amp; ML Signals →</a></li>
+  </ul>
+
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — the RPO test mechanics, the PCA decomposition approach, or the basis risk problem are all worth exploring further.</p>
+    <p style="margin-top:0.5rem;">Lesson 6 of the <em>AI/ML in Banking &amp; Finance</em> course · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

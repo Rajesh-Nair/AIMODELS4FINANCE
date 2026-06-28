@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 26: Security Services Product Pricing</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<div class="page">
+  <div class="lesson-meta">Lesson 26 · Securities Services</div>
+  <h1>Security Services Product Pricing</h1>
+  <p class="subtitle">Custody, fund administration, transfer agency, and securities lending — the plumbing of financial markets, and how ML optimises revenue analytics in a fee-based business model.</p>
+
+  <h2>1. What securities services is</h2>
+  <p><strong>Securities services</strong> (also called "investor services" or "custody &amp; clearing") is the B2B business that provides post-trade infrastructure to asset managers, pension funds, sovereign wealth funds, and other institutional investors. Major providers: State Street, BNY Mellon, J.P. Morgan, Citibank, HSBC Securities Services.</p>
+  <p>Unlike retail banking (credit risk) or investment banking (market risk), securities services is primarily a <strong>fee-based, volume-driven business</strong>. The ML problems are fundamentally revenue analytics and operational efficiency rather than credit or market risk modelling.</p>
+  <table>
+    <thead><tr><th>Service line</th><th>What it does</th><th>Fee structure</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Custody</strong></td><td>Safekeeping of securities — the legal sub-custodian holding client assets in regulated accounts</td><td>Basis points on assets under custody (AUC); transaction fees per settlement</td></tr>
+      <tr><td><strong>Fund administration</strong></td><td>NAV calculation, accounting, regulatory reporting for investment funds</td><td>Basis points on AUM; fixed fee per fund per month</td></tr>
+      <tr><td><strong>Transfer agency (TA)</strong></td><td>Investor registry — recording who owns shares in a fund, processing subscriptions/redemptions</td><td>Per transaction; per registered holder; per fund</td></tr>
+      <tr><td><strong>Securities lending</strong></td><td>Lending client securities to short sellers; splitting lending income between client and agent</td><td>Revenue share on lending income; typically 50/50 to 80/20 split</td></tr>
+    </tbody>
+  </table>
+
+  <h2>2. Pricing models for custody and fund administration</h2>
+  <p>Client pricing in custody is a complex negotiation: a large asset manager may have 50+ individual fee lines (per asset class, per market, per transaction type). The challenge is pricing the full client relationship profitably, accounting for:</p>
+  <ul>
+    <li><strong>Revenue concentration:</strong> a few large clients generate most revenue; losing one client has outsized P&L impact</li>
+    <li><strong>Cost-to-serve variability:</strong> a client with 1,000 funds is more expensive to serve than one with 10 funds of the same AUM — the operational complexity matters as much as AUM</li>
+    <li><strong>Cross-sell:</strong> a custody client might also use fund administration, TA, and FX services — the total relationship profitability drives pricing decisions on individual components</li>
+  </ul>
+  <pre>Client profitability = Σ_service_lines Revenue(service, volume, price)
+                      − Σ_service_lines Cost_to_serve(service, volume, complexity)
+                      − Allocated overhead
+
+ML role: model cost-to-serve accurately (regression on operational metrics,
+         complexity drivers); predict client lifetime value for pricing negotiations</pre>
+
+  <h2>3. ML for securities lending revenue optimisation</h2>
+  <p><strong>Securities lending</strong> is the most ML-intensive area of securities services. Client portfolios contain securities that can be lent to short sellers for a fee. Optimising lending income requires:</p>
+  <ul>
+    <li><strong>Demand prediction:</strong> which securities will be in demand for short selling, and at what fee rate? Historical patterns (high demand around earnings announcements, M&amp;A events, index rebalancings) can be modelled. NLP on news and events data improves demand prediction.</li>
+    <li><strong>Optimal fee setting:</strong> setting the lending fee too low leaves money on the table; too high and demand drops. ML demand elasticity models learn the fee-demand curve per security per day.</li>
+    <li><strong>Portfolio utilisation optimisation:</strong> not all securities in a client's portfolio are eligible or desirable for lending. ML optimises the lending portfolio composition — maximising income while respecting client constraints (minimum holding for voting, regulatory restrictions on lending sovereign bonds).</li>
+    <li><strong>Collateral optimisation:</strong> securities borrowers post collateral. ML optimises collateral selection (which securities to accept, cheapest to deliver) against regulatory eligibility criteria.</li>
+  </ul>
+
+  <h2>4. Operational efficiency ML in securities services</h2>
+  <p>Securities services is an operational business — high volume, low margin per transaction. ML directly addresses operational efficiency:</p>
+  <table>
+    <thead><tr><th>ML application</th><th>Problem</th><th>Technique</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Settlement prediction</strong></td><td>Which trades will fail to settle on time (settlement fails)? → proactive intervention</td><td>XGBoost on trade characteristics, counterparty, market volatility; binary classifier</td></tr>
+      <tr><td><strong>Corporate action automation</strong></td><td>Processing corporate events (dividends, mergers, rights issues) on client portfolios — high manual effort, high error risk</td><td>NLP on corporate action announcements; classification of action types; automated processing routing</td></tr>
+      <tr><td><strong>Client service automation</strong></td><td>Client queries (trade status, NAV queries, report requests) — high volume, predictable content</td><td>NLP chatbots and query classification; RAG (retrieval-augmented generation) on fund documents</td></tr>
+      <tr><td><strong>Exception management</strong></td><td>Flagging reconciliation breaks requiring human investigation vs. routine breaks that auto-resolve</td><td>Multi-class classifier on break characteristics; prioritise human attention to true exceptions</td></tr>
+    </tbody>
+  </table>
+
+  <h2>5. Revenue analytics and client retention</h2>
+  <p>The strategic ML application in securities services is <strong>client revenue analytics</strong> — understanding which clients are profitable, at risk of leaving, or have untapped cross-sell potential:</p>
+  <ul>
+    <li><strong>Client churn prediction:</strong> RFP (request for proposal) activity, fee complaint patterns, relationship manager turnover, and competitor market share trends are early churn signals. ML churn model (similar to Lesson 4's credit scoring approach) triggers retention interventions.</li>
+    <li><strong>Wallet share analysis:</strong> a client with £50bn AUC but also using a competitor for fund administration has untapped wallet. ML estimates the full custody wallet using client AUM, fund count, and market data — identifying the cross-sell opportunity.</li>
+    <li><strong>Pricing optimisation:</strong> dynamic fee recommendation engine for relationship managers — "for a client of this profile and volume, we can profitably offer X bps custody + Y bps fund admin and expect Z total revenue"</li>
+  </ul>
+
+  <div class="callout risk">
+    <div class="callout-label">Model risk in a fee-based business</div>
+    Securities services models are not subject to Basel IRB or IFRS9 model risk governance — the assets belong to clients, not the bank. But they carry commercial model risk: a cost-to-serve model that underestimates complexity will price a contract at a loss; a client profitability model that misallocates overhead will misdirect resource allocation. MRM governance applies if these models feed capital reporting (operational risk capital) or regulatory returns. For purely commercial pricing models, an internal model validation process and commercial audit provides the governance layer.
+  </div>
+
+  <hr>
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+    <div class="question">
+      <p>1. Why does the number of funds a client has (rather than just total AUM) matter for custody pricing?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Custody fees are charged per fund rather than on AUM in all custody contracts</button>
+        <button class="option" data-correct="true">Operational cost-to-serve scales with fund complexity (NAV calculations, regulatory reporting, corporate action processing) — 100 funds of £100m each is operationally more expensive than 1 fund of £10bn</button>
+        <button class="option" data-correct="false">Regulatory capital requirements are higher for custodians with more funds</button>
+        <button class="option" data-correct="false">More funds means more diversification — lower risk and therefore lower pricing</button>
+      </div>
+      <div class="feedback good">Correct. Custody and fund administration costs are driven by operational complexity, not just AUM. Each fund requires its own NAV calculation, regulatory filings, corporate action processing, and reconciliation. A client with 100 small funds generates 100× the operational work of a client with 1 large fund, even at the same total AUM. A naive AUM-based pricing model will systematically underprice complex multi-fund clients and overprice simple single-fund clients. ML cost-to-serve models capture this by using fund count, asset class mix, transaction volume, and exception rate as cost drivers alongside AUM.</div>
+      <div class="feedback bad">Custody pricing has two components: AUM-based fees (which scale with the value of assets) and complexity-based fees (which scale with the number of funds, transactions, markets, and asset classes). A £10bn hedge fund with 200 separate legal vehicles in 30 markets generates radically more operational work than a £10bn index fund in a single market. AUM alone is a poor cost proxy. ML cost-to-serve models identify the operational cost drivers and allow pricing that reflects actual cost structure, avoiding the "winner's curse" of winning complex clients at profitless price points.</div>
+    </div>
+    <div class="question">
+      <p>2. In securities lending, why is setting the lending fee at the wrong level directly harmful to the client?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Clients pay the lending fee directly from their investment returns</button>
+        <button class="option" data-correct="true">Lending income is split between the client and the agent custodian — a fee set too low leaves the client earning less than the market rate; a fee set too high reduces demand and therefore total income available to share</button>
+        <button class="option" data-correct="false">Regulatory rules require lending fees to be set at the risk-free rate; any deviation creates a regulatory violation</button>
+        <button class="option" data-correct="false">Fee errors affect only the custodian's revenue — clients receive a fixed guaranteed rate</button>
+      </div>
+      <div class="feedback good">Correct. In agent securities lending, the custodian (agent) lends client securities and splits the resulting income with the client. If the agent sets the lending fee too low (under-prices the securities), total income is less than could have been earned — both client and agent share a smaller pie. If set too high, borrowers go to alternative lenders and demand falls — again reducing total income. ML demand elasticity models find the fee that maximises total lending income (and therefore both the client's and agent's share). The best-interest-of-client obligation makes fee optimisation a fiduciary question, not just a commercial one.</div>
+      <div class="feedback bad">Securities lending income is a revenue-sharing arrangement — both the client (beneficial owner of the securities) and the custodian (agent lender) benefit from higher lending income. An ML model that maximises income by finding the optimal fee point is directly serving the client's interest. Under-pricing sacrifices income both parties could have earned; over-pricing loses demand. The skill is predicting demand elasticity per security — which requires ML on historical lending data, borrower behaviour, and market signals.</div>
+    </div>
+    <div class="question">
+      <p>3. NLP is applied to corporate action announcement documents. What is the ML model predicting, and why does automation matter here?</p>
+      <div class="options">
+        <button class="option" data-correct="false">NLP predicts whether the corporate action will be profitable for the client to participate in</button>
+        <button class="option" data-correct="true">NLP classifies the corporate action type (dividend, rights issue, merger election, spin-off) from announcement text — enabling automated processing routing and reducing manual review of thousands of daily announcements across global markets</button>
+        <button class="option" data-correct="false">NLP translates corporate actions from foreign languages, enabling global coverage</button>
+        <button class="option" data-correct="false">NLP predicts the stock price impact of the corporate action for client reporting purposes</button>
+      </div>
+      <div class="feedback good">Correct. A global custodian processes thousands of corporate action notifications per day across all markets where clients hold securities. Each one must be classified, validated, and either processed automatically or routed to a specialist for review. The classification task — is this a mandatory event (no client choice) or a voluntary event (client must elect)? Is this a cash dividend or a scrip alternative? — is highly pattern-structured across announcement documents in many languages and formats. NLP classification models automate the routing decision, reserving human attention for genuinely ambiguous or novel event types.</div>
+      <div class="feedback bad">Corporate action processing is high-volume, time-sensitive, and error-prone when manual. A missed election deadline (client wasn't told about a rights issue in time) or misprocessed dividend can cause client harm and regulatory sanctions. NLP classifying corporate action types from announcement documents (SWIFT messages, company filings, exchange notifications) is the first step in an automated processing chain. Correct classification routes events to the right processing system automatically. Human review is reserved for exceptions — unusual event structures, conflicting announcements, or low-confidence model outputs.</div>
+    </div>
+    <div class="quiz-score"></div>
+  </div>
+  <hr>
+  <h2>Primary source to read next</h2>
+  <p><strong>ISSA — International Securities Services Association papers on automation and AI in post-trade</strong><br>
+  <a href="https://www.issanet.org/publications" target="_blank">issanet.org — ISSA Publications</a></p>
+  <p>ISSA (the industry body for securities services) publishes working papers on technology trends, including ML in settlement prediction, corporate action automation, and securities lending optimisation. The reports are practitioner-authored and reflect real deployment experience rather than academic research.</p>
+  <h2>What comes next</h2>
+  <ul>
+    <li><a href="0025-hr-models.html">← Lesson 25: HR Models</a></li>
+    <li><a href="0027-regulatory-compliance-risk.html">Lesson 27: Regulatory Compliance Risk →</a></li>
+  </ul>
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — securities lending optimisation, custody pricing methodology, or corporate action automation are all worth discussing further.</p>
+    <p style="margin-top:.5rem;">Lesson 26 · <em>AI/ML in Banking &amp; Finance</em> · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

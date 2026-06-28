@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 8: CCAR &amp; Stress Testing with ML</title>
+<link rel="stylesheet" href="../assets/styles.css">
+<style>
+  .scenario-box {
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    overflow: hidden;
+    margin: 1.2rem 0;
+    font-family: var(--font-sans);
+    font-size: 0.84rem;
+  }
+  .scenario-header {
+    padding: 0.5rem 1rem;
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+  }
+  .scenario-header.adverse  { background: var(--warn-light);    color: var(--warn); }
+  .scenario-header.baseline { background: var(--accent-light);  color: var(--accent); }
+  .scenario-body {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    padding: 0.8rem 1rem;
+    gap: 0.5rem;
+  }
+  .scenario-kv { }
+  .scenario-kv span { display: block; }
+  .scenario-kv .k { color: var(--muted); font-size: 0.75rem; }
+  .scenario-kv .v { font-weight: 700; font-size: 0.95rem; }
+  .v.bad  { color: var(--warn); }
+  .v.good { color: var(--success); }
+  @media (max-width:540px) {
+    .scenario-body { grid-template-columns: 1fr 1fr; }
+  }
+  .satellite-flow {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 1.2rem 0;
+    font-family: var(--font-sans);
+    font-size: 0.82rem;
+  }
+  .sat-box {
+    background: white;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 0.4rem 0.75rem;
+    text-align: center;
+  }
+  .sat-box.macro { border-color: var(--accent); background: var(--accent-light); }
+  .sat-box.model { border-color: #888; background: var(--neutral); }
+  .sat-box.output { border-color: var(--warn); background: var(--warn-light); }
+  .sat-arrow { color: #aaa; font-size: 1.1rem; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="lesson-meta">Lesson 08 · Market Risk</div>
+  <h1>CCAR &amp; Stress Testing with ML</h1>
+  <p class="subtitle">
+    How non-linear models make stress scenarios more granular — and why the regulator's challenge function makes interpretability non-negotiable.
+  </p>
+
+  <!-- 1 -->
+  <h2>1. What CCAR demands of banks</h2>
+
+  <p>
+    <strong>CCAR (Comprehensive Capital Analysis and Review)</strong> is the Federal Reserve's annual
+    stress testing programme for large US bank holding companies. The UK equivalent is the
+    <strong>Bank of England's Annual Cyclical Scenario (ACS)</strong>. The European Banking Authority
+    runs <strong>EU-wide stress tests</strong> on a similar cadence.
+  </p>
+
+  <p>
+    The core question: <em>If the economy deteriorates severely, does the bank still have enough
+    capital to keep lending?</em> The Fed prescribes macroeconomic scenarios — banks must project
+    their own losses, revenues, and capital ratios under those scenarios using their internal models.
+  </p>
+
+  <div class="scenario-box">
+    <div class="scenario-header adverse">Severely Adverse Scenario — stylised CCAR inputs</div>
+    <div class="scenario-body">
+      <div class="scenario-kv"><span class="k">Unemployment</span><span class="v bad">+5.5pp → 10%</span></div>
+      <div class="scenario-kv"><span class="k">GDP growth</span><span class="v bad">−5% peak</span></div>
+      <div class="scenario-kv"><span class="k">Equity markets</span><span class="v bad">−55%</span></div>
+      <div class="scenario-kv"><span class="k">House prices</span><span class="v bad">−25%</span></div>
+      <div class="scenario-kv"><span class="k">Corp credit spread</span><span class="v bad">+375bp</span></div>
+      <div class="scenario-kv"><span class="k">Short-term rates</span><span class="v bad">near zero</span></div>
+    </div>
+  </div>
+
+  <p>
+    Banks feed these macro variables into <strong>satellite models</strong> that translate them into
+    portfolio-level losses: credit losses, market risk losses, pre-provision net revenue (PPNR),
+    and operational risk. The final output is a projected Common Equity Tier 1 (CET1) ratio across
+    a 9-quarter horizon — if it stays above the regulatory minimum, the bank passes.
+  </p>
+
+  <!-- 2 -->
+  <h2>2. The traditional satellite model approach</h2>
+
+  <div class="satellite-flow">
+    <div class="sat-box macro">Macro scenario<br><small>GDP, unemployment, rates, HPI</small></div>
+    <div class="sat-arrow">→</div>
+    <div class="sat-box model">Satellite model<br><small>OLS regression per portfolio</small></div>
+    <div class="sat-arrow">→</div>
+    <div class="sat-box output">Loss projection<br><small>PD, LGD, losses by quarter</small></div>
+    <div class="sat-arrow">→</div>
+    <div class="sat-box macro">Capital adequacy<br><small>CET1 ratio vs floor</small></div>
+  </div>
+
+  <p>
+    The classical approach: regress historical loan loss rates (or PD/LGD changes) on lagged macro
+    variables using <strong>OLS or panel regression</strong>. The fitted coefficients translate each
+    macro variable's movement into an expected change in portfolio losses.
+  </p>
+
+  <p>Example — a simple retail credit loss satellite model:</p>
+  <pre>Loss_rate_t = α
+             + β₁ × ΔUnemployment_t
+             + β₂ × ΔGDP_t
+             + β₃ × ΔHousePrice_t
+             + ε_t</pre>
+
+  <p>
+    Plug in the scenario values → get a quarterly loss rate → multiply by EAD → get credit losses.
+    Simple, transparent, and examinable by regulators. The limitation: macro-loss relationships
+    are non-linear, regime-dependent, and differ across portfolio segments — exactly what OLS cannot capture.
+  </p>
+
+  <!-- 3 -->
+  <h2>3. Where ML improves on satellite models</h2>
+
+  <h3>Non-linear shock transmission</h3>
+  <p>
+    Unemployment rising from 4% to 5% has a very different impact on consumer credit losses than
+    rising from 8% to 10% — the relationship is concave at low unemployment and convex as it
+    approaches a crisis level. OLS forces linearity. ML (XGBoost, neural networks) learns the true
+    non-linear shape from the data.
+  </p>
+
+  <h3>Interaction effects between macro variables</h3>
+  <p>
+    High unemployment <em>plus</em> falling house prices <em>plus</em> tight credit conditions
+    produces losses far exceeding the sum of each factor's individual effect — a joint shock
+    that linear models systematically underestimate. Gradient boosted trees capture these
+    cross-variable interactions naturally.
+  </p>
+
+  <h3>Granular projection</h3>
+  <p>
+    Instead of a single portfolio-level satellite model, ML can produce account-level or
+    segment-level loss projections. This enables the bank to identify <em>which segments</em>
+    are most stressed under each scenario — a capability that is increasingly demanded by
+    regulators who want to understand the distribution of losses, not just the aggregate.
+  </p>
+
+  <h3>ML-generated stress scenarios</h3>
+  <p>
+    An emerging application: use <strong>Generative Adversarial Networks (GANs)</strong> or
+    <strong>Variational Autoencoders (VAEs)</strong> to generate <em>adversarial</em> stress
+    scenarios — the worst plausible macro paths that are not in the historical dataset.
+    The generator learns the joint distribution of macro variables and produces novel scenarios
+    that respect economic constraints (e.g., unemployment cannot fall and credit spreads cannot
+    tighten simultaneously with GDP collapsing).
+  </p>
+
+  <div class="callout info">
+    <div class="callout-label">Adversarial vs regulatory scenarios</div>
+    ML-generated adversarial scenarios complement but do not replace regulator-prescribed scenarios.
+    Banks use them for internal stress testing, reverse stress testing (find the scenario that
+    causes failure), and climate stress testing (where historical data is scarce). The regulatory
+    CCAR submission still uses Fed-prescribed scenarios — ML scenarios inform the internal view.
+  </div>
+
+  <!-- 4 -->
+  <h2>4. The out-of-sample problem: stress testing's hardest challenge</h2>
+
+  <p>
+    All ML models face a common problem in stress testing: <strong>the scenarios being tested are
+    outside the training data by design</strong>. A severely adverse scenario is a tail event —
+    it has never happened, or has happened rarely. This creates a fundamental epistemological
+    problem for any model:
+  </p>
+
+  <ul>
+    <li>
+      A model trained on 2000–2020 data will capture the 2008 crisis, the 2011 European sovereign
+      crisis, and COVID. But a scenario with simultaneous 55% equity decline and 10% unemployment
+      and falling rates — the "triple shock" — may have no exact historical precedent.
+    </li>
+    <li>
+      ML models are particularly susceptible: tree-based models extrapolate poorly beyond the
+      range of training data. The prediction at unemployment = 14% is simply the prediction at
+      the maximum unemployment seen in training, extended flat.
+    </li>
+    <li>
+      Neural networks can extrapolate more smoothly but may do so incorrectly if the functional
+      form in the extreme tail differs from the training range.
+    </li>
+  </ul>
+
+  <div class="callout risk">
+    <div class="callout-label">The conservatism overlay</div>
+    Banks routinely apply <strong>management overlays</strong> to ML stress test outputs:
+    expert judgment adjustments that increase projected losses in areas where the model's
+    extrapolation is uncertain. These overlays must themselves be documented, justified, and
+    validated. A bank that uses an overlay every year without documenting its basis is creating
+    a model risk finding ("undocumented model adjustment"). The overlay is not a free pass —
+    it is itself model risk governed.
+  </div>
+
+  <!-- 5 -->
+  <h2>5. Interpretability under regulatory challenge</h2>
+
+  <p>
+    CCAR stress models face a uniquely intense interpretability requirement: <strong>the Federal
+    Reserve's challenge function</strong>. Examiners review bank models and can:
+  </p>
+
+  <ul>
+    <li>Reject projections as implausible and substitute their own estimates</li>
+    <li>Issue Matters Requiring Attention (MRAs) or Matters Requiring Immediate Attention (MRIAs) for model deficiencies</li>
+    <li>Require full re-submission if the stress test is found materially non-compliant</li>
+  </ul>
+
+  <p>
+    For an ML stress model to survive regulatory challenge, it must:
+  </p>
+
+  <ol>
+    <li><strong>Produce directionally sensible responses</strong> — credit losses must rise with unemployment, fall with GDP growth. SHAP / PDP analysis must confirm this for examiners.</li>
+    <li><strong>Have stable sensitivity</strong> — a 1pp change in unemployment should produce a consistent, documented loss impact. Reviewers will run sensitivity tests.</li>
+    <li><strong>Be independently validated</strong> — the stress model validation team must have run challenger models (e.g., a linear satellite model as challenger to the ML model) and documented why the ML model is preferred.</li>
+    <li><strong>Have documented conservatism</strong> — where the model extrapolates into the tail, overlays must be justified in writing and approved by the Model Risk Committee.</li>
+  </ol>
+
+  <div class="callout insight">
+    <div class="callout-label">SR 15-18: the stress test governance standard</div>
+    The Fed's <a href="https://www.federalreserve.gov/supervisionreg/srletters/sr1518.htm" target="_blank">SR 15-18</a>
+    letter provides detailed expectations for stress testing model risk management. It explicitly
+    applies SR 11-7's full MRM framework to stress models — development, validation, governance,
+    ongoing monitoring — and adds stress-test-specific requirements on scenario sensitivity and
+    documentation. Reading this alongside SR 11-7 gives the full governance picture.
+  </div>
+
+  <!-- 6 -->
+  <h2>6. Summary: ML's role in the stress testing workflow</h2>
+
+  <table>
+    <thead>
+      <tr><th>Use case</th><th>ML technique</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Non-linear loss projection</td>
+        <td>XGBoost / gradient boosting satellite models</td>
+        <td>Deployed at several large banks; regulatory precedent building</td>
+      </tr>
+      <tr>
+        <td>Account-level granular stress</td>
+        <td>Random Forest / neural network at segment or account level</td>
+        <td>Used internally; regulatory acceptance of granular ML still maturing</td>
+      </tr>
+      <tr>
+        <td>Adversarial scenario generation</td>
+        <td>GANs, VAEs, copula-based generators</td>
+        <td>Primarily research / internal risk; not in regulatory submissions</td>
+      </tr>
+      <tr>
+        <td>Climate stress scenarios</td>
+        <td>ML on physical risk / transition risk data to map onto financial losses</td>
+        <td>Emerging; NGFS scenarios provide the macro framework</td>
+      </tr>
+      <tr>
+        <td>Model challenger / benchmarking</td>
+        <td>ML as challenger to incumbent OLS — validates that OLS is conservative</td>
+        <td>Standard practice in model validation</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+
+    <div class="question">
+      <p>1. What is the output of a CCAR stress test that determines whether a bank "passes"?</p>
+      <div class="options">
+        <button class="option" data-correct="false">The bank's pre-provision net revenue (PPNR) in the stress scenario</button>
+        <button class="option" data-correct="false">Whether the bank's PD models produce plausible loss estimates</button>
+        <button class="option" data-correct="true">The projected CET1 capital ratio across the stress horizon — must stay above the regulatory minimum</button>
+        <button class="option" data-correct="false">The total credit losses expressed as a percentage of RWA</button>
+      </div>
+      <div class="feedback good">Correct. The stress test output is a projected capital ratio (CET1) over 9 quarters under the severely adverse scenario. If the bank's CET1 remains above the regulatory minimum (4.5% + buffers), it passes. Failing can trigger restrictions on dividends and share buybacks.</div>
+      <div class="feedback bad">CCAR's final test is the capital ratio trajectory. Banks must show that even under the severely adverse scenario, their CET1 ratio stays above the regulatory minimum over a 9-quarter horizon. Credit losses, PPNR, and market losses all feed into this calculation, but the pass/fail criterion is the capital ratio floor.</div>
+    </div>
+
+    <div class="question">
+      <p>2. Why do traditional OLS satellite models systematically underestimate losses in a severe stress scenario?</p>
+      <div class="options">
+        <button class="option" data-correct="false">OLS models are not trained on historical stress data</button>
+        <button class="option" data-correct="true">OLS assumes linear relationships — it cannot capture the accelerating loss response as macro variables reach extreme values</button>
+        <button class="option" data-correct="false">OLS models do not account for regulatory capital floors</button>
+        <button class="option" data-correct="false">OLS is computationally unstable under high-unemployment scenarios</button>
+      </div>
+      <div class="feedback good">Correct. The relationship between, say, unemployment and credit losses is non-linear — the marginal impact of each additional percentage point of unemployment grows at extreme levels. OLS forces a constant slope, so it extrapolates linearly beyond the training range. ML captures the non-linearity from the data, producing higher (more conservative) loss estimates in severe tail scenarios.</div>
+      <div class="feedback bad">OLS forces a linear, constant-slope relationship between macro inputs and losses. In reality, the loss response accelerates at extremes — a 10% unemployment rate causes disproportionately more losses than a linear model predicts relative to 5% unemployment. ML captures this non-linear shape. OLS extrapolates linearly into the tail, systematically understating losses exactly when the stress test is most important.</div>
+    </div>
+
+    <div class="question">
+      <p>3. A bank applies a management overlay, increasing projected credit losses by 15% above the ML model output for the severely adverse scenario. What must the bank do to satisfy SR 11-7 / SR 15-18?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Nothing — overlays are discretionary and not subject to model risk governance</button>
+        <button class="option" data-correct="false">Remove the overlay as it constitutes a model adjustment that regulators prohibit</button>
+        <button class="option" data-correct="true">Document the basis for the overlay, have it approved by the Model Risk Committee, and validate it as part of the stress model review</button>
+        <button class="option" data-correct="false">Apply the same overlay percentage to all stress scenarios for consistency</button>
+      </div>
+      <div class="feedback good">Correct. SR 15-18 (and SR 11-7 applied to stress models) requires that overlays be documented with a clear rationale, approved through the appropriate governance process, and reviewed during model validation. An undocumented or habitual overlay that is never revisited is itself a model risk finding — it becomes an unofficial model component without governance.</div>
+      <div class="feedback bad">Management overlays are not exempt from governance. SR 15-18 requires the basis for any overlay to be documented (e.g., "model extrapolates beyond its training range for unemployment > 9%; overlay reflects expert judgment on tail non-linearity"), approved by the MRC, and reviewed at the next validation cycle. Routine, undocumented overlays are a top CCAR model risk finding.</div>
+    </div>
+
+    <div class="question">
+      <p>4. Why are GANs and VAEs used for stress scenario generation rather than directly in CCAR regulatory submissions?</p>
+      <div class="options">
+        <button class="option" data-correct="false">GANs are too computationally expensive to run on bank-scale portfolios</button>
+        <button class="option" data-correct="false">Regulators prohibit deep learning models in stress testing submissions</button>
+        <button class="option" data-correct="true">CCAR submissions must use Fed-prescribed macro scenarios; ML generation is used internally for reverse stress testing and novel scenario exploration</button>
+        <button class="option" data-correct="false">GANs produce scenarios that are too conservative and would fail the stress test</button>
+      </div>
+      <div class="feedback good">Correct. The Fed prescribes the specific macro paths for official CCAR submissions — banks cannot substitute their own scenarios. ML scenario generation is valuable for internal purposes: reverse stress testing (what scenario would cause us to fail?), climate scenarios (where there is no historical data), and internal board stress tests that go beyond the regulatory minimum.</div>
+      <div class="feedback bad">The regulatory CCAR submission must use the Fed's prescribed scenarios. No substitution is permitted. ML-generated scenarios are used internally — for reverse stress testing (finding the failure scenario), deep tail exploration, climate risk (where historical data is limited), and internal management information. They inform risk decisions without appearing in the regulatory capital submission.</div>
+    </div>
+
+    <div class="quiz-score"></div>
+  </div>
+
+  <hr>
+
+  <h2>Primary source to read next</h2>
+  <p>
+    <strong>Federal Reserve SR 15-18: Supervisory Guidance for Data, Modeling, and Model Risk Management under the Dodd-Frank Act Stress Testing Rules</strong><br>
+    <a href="https://www.federalreserve.gov/supervisionreg/srletters/sr1518.htm" target="_blank">federalreserve.gov/supervisionreg/srletters/sr1518.htm</a>
+  </p>
+  <p>
+    Short (9 pages), precise, and directly applicable. Specifies what model risk governance looks
+    like for stress test models. Read alongside SR 11-7 to understand how the same MRM framework
+    is applied in the stress testing context with additional scenario-sensitivity requirements.
+  </p>
+
+  <h2>What comes next</h2>
+  <p>
+    We shift to <strong>Fraud Detection</strong> — supervised learning on labelled transaction data,
+    autoencoders for novel fraud detection, and why recall dominates all other metrics when the
+    cost of a missed fraud vastly exceeds the cost of a false positive.
+  </p>
+  <ul>
+    <li><a href="0007-algo-trading-signals.html">← Lesson 7: Algo Trading</a></li>
+    <li><a href="0009-fraud-detection.html">Lesson 9: Fraud Detection →</a></li>
+  </ul>
+
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — the satellite model mechanics, the management overlay governance, or the GANs for scenario generation are all worth exploring further in the chat.</p>
+    <p style="margin-top:0.5rem;">Lesson 8 of the <em>AI/ML in Banking &amp; Finance</em> course · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 1: PD Modelling — From Scorecards to XGBoost</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<div class="page">
+
+  <div class="lesson-meta">Lesson 01 · Credit Risk</div>
+  <h1>PD Modelling: From Scorecards to XGBoost</h1>
+  <p class="subtitle">
+    How ML improves default prediction — and what the regulator demands in return.
+  </p>
+
+  <!-- ── 1. Why PD Matters ── -->
+  <h2>1. What is PD and why does it dominate credit risk?</h2>
+
+  <p>
+    <strong>Probability of Default (PD)</strong> is the estimated likelihood that a borrower will fail to meet a
+    contractual debt obligation within a defined horizon — typically 12 months (Basel point-in-time) or
+    through-the-cycle (TTC). PD is one of three key <strong>risk parameters</strong> mandated under the
+    <a href="https://www.bis.org/bcbs/publ/d457.htm" target="_blank">Basel III / IV framework</a> for banks
+    using the Internal Ratings-Based (IRB) approach:
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Parameter</th>
+        <th>Full name</th>
+        <th>What it estimates</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>PD</strong></td>
+        <td>Probability of Default</td>
+        <td>Likelihood the borrower defaults within 12 months</td>
+      </tr>
+      <tr>
+        <td><strong>LGD</strong></td>
+        <td>Loss Given Default</td>
+        <td>Fraction of exposure lost <em>if</em> default occurs</td>
+      </tr>
+      <tr>
+        <td><strong>EAD</strong></td>
+        <td>Exposure at Default</td>
+        <td>Outstanding balance the bank faces at moment of default</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    Expected credit loss = PD × LGD × EAD. Banks use PD to calculate <strong>Risk-Weighted Assets (RWA)</strong>,
+    which directly determines how much capital must be held. A more accurate PD model means more precise
+    capital allocation — either freeing capital for lending or correctly buffering against loss.
+  </p>
+
+  <div class="callout info">
+    <div class="callout-label">Regulatory context</div>
+    Under Basel IRB Advanced, banks estimate PD themselves (subject to regulatory floors and validation).
+    Under the Standardised Approach, PD is prescribed by the regulator. IRB approval is a competitive
+    advantage — and a governance burden.
+  </div>
+
+  <!-- ── 2. The Traditional Scorecard ── -->
+  <h2>2. The classic approach: logistic regression scorecard</h2>
+
+  <p>
+    For decades, banks used <strong>logistic regression scorecards</strong> as the PD model of record. The
+    approach is well-understood by regulators and auditors and has specific properties that make it durable
+    in a regulated environment:
+  </p>
+
+  <ul>
+    <li><strong>Monotonic relationships</strong> between features and PD (higher debt = higher PD)</li>
+    <li><strong>Full interpretability</strong> — each variable has a coefficient that maps directly to a log-odds contribution</li>
+    <li><strong>Weight of Evidence (WoE) encoding</strong> — continuous variables are binned, making outliers and missings explicit</li>
+    <li>Output is a calibrated probability in [0, 1], directly usable as PD</li>
+  </ul>
+
+  <div class="callout insight">
+    <div class="callout-label">Why scorecards survive</div>
+    A logistic scorecard passes challenger–champion testing trivially. A regulator can look at the model
+    card, read the coefficients, and immediately verify business logic (e.g., "more missed payments → higher PD").
+    No black-box concerns. This interpretability premium is why scorecards still dominate retail lending even
+    as XGBoost beats them on AUC.
+  </div>
+
+  <!-- ── 3. Where XGBoost Wins ── -->
+  <h2>3. Where XGBoost and neural networks win</h2>
+
+  <p>
+    Traditional scorecards assume roughly monotonic, additive relationships between features and default.
+    Real borrower behaviour is messier:
+  </p>
+
+  <ul>
+    <li>A high income borrower with very high spending <em>and</em> very high debt may default at a disproportionately high rate — an interaction the additive model cannot capture cleanly</li>
+    <li>The relationship between credit utilisation and default is non-linear: low utilisation (0–30%) is safe, 30–70% is moderate risk, >90% signals distress — a step function, not a line</li>
+    <li>Alternative data (transaction patterns, device metadata, bureau tradelines) has complex multi-way interactions</li>
+  </ul>
+
+  <p>
+    <a href="https://www.bis.org/publ/work765.htm" target="_blank">BIS Working Paper 765 (2019)</a> compared
+    ML methods to logistic regression across real consumer loan portfolios and found consistent Gini
+    improvements of <strong>3–8 percentage points</strong> for gradient boosted trees, primarily from capturing
+    non-linear interaction effects.
+  </p>
+
+  <h3>Feature types used in ML PD models</h3>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Feature category</th>
+        <th>Examples</th>
+        <th>ML advantage</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Traditional bureau data</td>
+        <td>Credit score, number of delinquencies, age of oldest account</td>
+        <td>Non-linear thresholds, interaction with income</td>
+      </tr>
+      <tr>
+        <td>Application data</td>
+        <td>Loan-to-income, employment tenure, product type</td>
+        <td>Interaction effects between multiple features</td>
+      </tr>
+      <tr>
+        <td>Behavioural / transaction</td>
+        <td>Average monthly balance, payment pattern, ATM usage</td>
+        <td>Temporal patterns; high-dimensional feature space</td>
+      </tr>
+      <tr>
+        <td>Macro / contextual</td>
+        <td>Unemployment rate, house price index, rate environment</td>
+        <td>Regime detection, stress sensitivity</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ── 4. Model Evaluation ── -->
+  <h2>4. How PD models are evaluated</h2>
+
+  <p>
+    Credit risk has its own evaluation vocabulary. You need to know these; they appear in model validation
+    reports, regulatory submissions, and risk committee packs.
+  </p>
+
+  <h3>Discrimination metrics</h3>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Metric</th>
+        <th>What it measures</th>
+        <th>Typical threshold</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Gini coefficient</strong></td>
+        <td>How well the model separates defaulters from non-defaulters. <em>Gini = 2 × AUC − 1</em></td>
+        <td>&gt;50% acceptable; &gt;70% strong for retail</td>
+      </tr>
+      <tr>
+        <td><strong>AUC-ROC</strong></td>
+        <td>Area under the ROC curve — probability the model ranks a defaulter above a non-defaulter</td>
+        <td>&gt;0.75 for most retail portfolios</td>
+      </tr>
+      <tr>
+        <td><strong>KS statistic</strong></td>
+        <td>Maximum separation between cumulative default and non-default distributions across score bands</td>
+        <td>&gt;40% acceptable; KS at score band used for cutoff setting</td>
+      </tr>
+      <tr>
+        <td><strong>Lift / CAP curve</strong></td>
+        <td>Cumulative Accuracy Profile — used in regulatory validation submissions</td>
+        <td>AR (Accuracy Ratio) = Gini; same measure, different name</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Calibration metrics</h3>
+
+  <p>
+    Discrimination tells you whether the model <em>ranks</em> borrowers correctly. Calibration tells you
+    whether the predicted PD is the <em>right number</em>. Both matter for capital calculation.
+  </p>
+
+  <ul>
+    <li><strong>Hosmer–Lemeshow test</strong>: tests whether observed defaults match predicted PDs across score bins</li>
+    <li><strong>Binomial test</strong>: at the portfolio level, tests whether the realised default rate is consistent with predicted PD</li>
+    <li><strong>Traffic light approach</strong> (Basel): green/amber/red zones based on how far realised defaults deviate from predicted PD</li>
+  </ul>
+
+  <div class="callout risk">
+    <div class="callout-label">Risk governance note</div>
+    A model with great Gini but poor calibration <em>will still cause capital miscalculation</em>. Regulators
+    evaluate both. XGBoost's raw output is not a calibrated probability — you must post-process it with
+    Platt scaling or isotonic regression before treating it as PD. This is a common model risk finding.
+  </div>
+
+  <!-- ── 5. Explainability ── -->
+  <h2>5. The explainability problem — and SHAP</h2>
+
+  <p>
+    The core tension in ML-based PD modelling: <strong>better discrimination vs. regulatory interpretability</strong>.
+    Regulators (PRA, ECB, OCC) require banks to be able to explain individual credit decisions — a
+    requirement that stems from consumer protection law (GDPR, ECOA) as much as prudential regulation.
+  </p>
+
+  <p>
+    <strong>SHAP (SHapley Additive exPlanations)</strong> has become the industry-standard response.
+    For each prediction, SHAP decomposes the model output into per-feature contributions rooted in
+    game-theoretic Shapley values:
+  </p>
+
+  <pre>Predicted log-odds = base_rate
+                   + SHAP(credit_utilisation) = +0.42
+                   + SHAP(missed_payments)    = +0.71
+                   + SHAP(loan_to_income)     = +0.18
+                   + SHAP(employment_tenure)  = -0.15
+                   + ...</pre>
+
+  <p>
+    This allows:
+  </p>
+  <ul>
+    <li>Adverse action notices ("your application was declined primarily due to high credit utilisation")</li>
+    <li>Model validation teams to verify that SHAP rankings are business-sensible</li>
+    <li>Regulators to audit individual decisions without needing to inspect the model internals</li>
+  </ul>
+
+  <p>
+    The best reference for SHAP theory and application is
+    <a href="https://christophm.github.io/interpretable-ml-book/shap.html" target="_blank">
+    Christoph Molnar's <em>Interpretable Machine Learning</em>, Chapter 9</a> — freely available online.
+  </p>
+
+  <!-- ── 6. Risk Governance ── -->
+  <h2>6. Risk governance: what SR 11-7 demands</h2>
+
+  <p>
+    <a href="https://www.federalreserve.gov/supervisionreg/srletters/sr1107.htm" target="_blank">
+    SR 11-7</a> (Federal Reserve, 2011) and the UK equivalent
+    <a href="https://www.bankofengland.co.uk/prudential-regulation/publication/2023/may/model-risk-management-principles-for-banks" target="_blank">
+    PRA SS1/23</a> define a model risk management (MRM) framework. For any PD model, this means:
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>MRM requirement</th>
+        <th>What it means in practice for an XGBoost PD model</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Model definition</strong></td>
+        <td>The model must be formally inventoried with a risk tier (High/Medium/Low). XGBoost PD for IRBA typically = High tier.</td>
+      </tr>
+      <tr>
+        <td><strong>Development standards</strong></td>
+        <td>Training/test split, out-of-time validation, feature justification, no look-ahead bias. Documented in a Model Development Document (MDD).</td>
+      </tr>
+      <tr>
+        <td><strong>Independent validation</strong></td>
+        <td>A team independent of development must replicate and stress-test the model. They produce a Model Validation Report (MVR) with findings and conditions.</td>
+      </tr>
+      <tr>
+        <td><strong>Model approval</strong></td>
+        <td>A Model Risk Committee (MRC) approves the model for use. Any unresolved findings = conditions or limitations on use.</td>
+      </tr>
+      <tr>
+        <td><strong>Ongoing monitoring</strong></td>
+        <td>Quarterly/annual performance monitoring reports tracking Gini, KS, PSI (Population Stability Index), and calibration. Triggers for review or redevelopment.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout risk">
+    <div class="callout-label">Common MRM finding for ML models</div>
+    "The model development team did not adequately demonstrate that the selected hyperparameters
+    (e.g., max_depth, n_estimators) are stable across different training windows and do not overfit
+    to the development sample." — XGBoost's flexibility is a validation red flag without rigorous
+    cross-validation and out-of-time testing.
+  </div>
+
+  <!-- ── 7. Key Differences Summary ── -->
+  <h2>7. Logistic scorecard vs XGBoost — side by side</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th></th>
+        <th>Logistic Scorecard</th>
+        <th>XGBoost PD Model</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Discrimination</strong></td>
+        <td>Good (Gini ~50–60%)</td>
+        <td>Better (Gini ~55–70%)</td>
+      </tr>
+      <tr>
+        <td><strong>Calibration</strong></td>
+        <td>Direct (logit output)</td>
+        <td>Requires post-processing</td>
+      </tr>
+      <tr>
+        <td><strong>Interpretability</strong></td>
+        <td>Native (coefficients)</td>
+        <td>Via SHAP (post-hoc)</td>
+      </tr>
+      <tr>
+        <td><strong>Non-linear patterns</strong></td>
+        <td>Limited</td>
+        <td>Strong</td>
+      </tr>
+      <tr>
+        <td><strong>Feature interactions</strong></td>
+        <td>Manual (interaction terms)</td>
+        <td>Automatic</td>
+      </tr>
+      <tr>
+        <td><strong>Regulatory acceptance</strong></td>
+        <td>High (proven track record)</td>
+        <td>Increasing, with SHAP explainability</td>
+      </tr>
+      <tr>
+        <td><strong>Validation complexity</strong></td>
+        <td>Low</td>
+        <td>High (hyperparameter sensitivity, calibration, stability)</td>
+      </tr>
+      <tr>
+        <td><strong>MRM risk tier</strong></td>
+        <td>High (IRBA use)</td>
+        <td>High (IRBA use) + additional complexity findings</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <!-- ── Quiz ── -->
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+
+    <div class="question">
+      <p>1. A PD model has AUC = 0.82. What is its Gini coefficient?</p>
+      <div class="options">
+        <button class="option" data-correct="false">0.82</button>
+        <button class="option" data-correct="true">0.64</button>
+        <button class="option" data-correct="false">0.41</button>
+        <button class="option" data-correct="false">0.18</button>
+      </div>
+      <div class="feedback good">Correct. Gini = 2 × AUC − 1 = 2 × 0.82 − 1 = 0.64. This is a useful Gini for a retail PD model.</div>
+      <div class="feedback bad">Not quite. The relationship is Gini = 2 × AUC − 1. So: 2 × 0.82 − 1 = 0.64.</div>
+    </div>
+
+    <div class="question">
+      <p>2. Why does XGBoost require a calibration step before its output can be used as PD?</p>
+      <div class="options">
+        <button class="option" data-correct="false">It always underestimates default rates</button>
+        <button class="option" data-correct="false">Regulators prohibit raw ML probabilities</button>
+        <button class="option" data-correct="true">Its raw output is a score, not a calibrated probability</button>
+        <button class="option" data-correct="false">XGBoost cannot output values in the range [0, 1]</button>
+      </div>
+      <div class="feedback good">Correct. XGBoost's leaf scores are not calibrated probabilities — they rank well, but the actual values may not match observed default rates. Platt scaling or isotonic regression maps them onto the probability space.</div>
+      <div class="feedback bad">Not quite. XGBoost's raw leaf output is a score that ranks borrowers well, but is not a calibrated probability. The actual numerical values won't match observed default rates without post-processing (Platt scaling or isotonic regression).</div>
+    </div>
+
+    <div class="question">
+      <p>3. Under SR 11-7 / PRA SS1/23, who must validate a High-tier PD model before it goes into production?</p>
+      <div class="options">
+        <button class="option" data-correct="false">The data science team that built it</button>
+        <button class="option" data-correct="false">The model risk committee alone</button>
+        <button class="option" data-correct="true">An independent validation team, separate from development</button>
+        <button class="option" data-correct="false">An external third-party auditor</button>
+      </div>
+      <div class="feedback good">Correct. SR 11-7 requires independence between model development and model validation. An internal team works, but it must be organisationally separate from the developers to avoid conflicts of interest.</div>
+      <div class="feedback bad">SR 11-7 is explicit: the validation function must be independent from the model development function. The same team cannot validate their own model. External audit is one route, but most banks maintain an internal independent validation team.</div>
+    </div>
+
+    <div class="question">
+      <p>4. A PD model has Gini = 68% but the Hosmer–Lemeshow test shows significant deviation in the top score band. What should happen?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Accept the model — Gini &gt; 65% is sufficient</button>
+        <button class="option" data-correct="false">Replace it immediately with a scorecard</button>
+        <button class="option" data-correct="true">Flag a calibration finding; recalibrate or apply an add-on</button>
+        <button class="option" data-correct="false">Ignore the top band as it contains few borrowers</button>
+      </div>
+      <div class="feedback good">Correct. Discrimination and calibration are separate requirements. A miscalibrated model will misprice risk even if its ranking is excellent. The standard remediation is recalibration or a conservative scalar add-on, documented as a model limitation.</div>
+      <div class="feedback bad">Good Gini does not compensate for poor calibration. Calibration determines whether the PD number is accurate, not just the ranking. A miscalibrated model miscalculates RWA and capital. The response is a calibration finding in the MVR, followed by recalibration or a documented add-on.</div>
+    </div>
+
+    <div class="question">
+      <p>5. SHAP values in an XGBoost PD model are used primarily to:</p>
+      <div class="options">
+        <button class="option" data-correct="false">Improve the model's Gini by tuning feature weights</button>
+        <button class="option" data-correct="true">Decompose predictions into per-feature contributions for explainability</button>
+        <button class="option" data-correct="false">Recalibrate the output probability distribution</button>
+        <button class="option" data-correct="false">Replace the need for out-of-time validation</button>
+      </div>
+      <div class="feedback good">Correct. SHAP decomposes each prediction into additive feature contributions, enabling adverse action explanations, regulatory audit, and model validation business-sense checks.</div>
+      <div class="feedback bad">SHAP doesn't change the model or its Gini — it explains predictions after the fact. Each prediction is decomposed into a sum of per-feature contributions, enabling adverse action notices and regulatory explainability.</div>
+    </div>
+
+    <div class="quiz-score"></div>
+  </div>
+
+  <hr>
+
+  <!-- ── Primary Source ── -->
+  <h2>Primary source to read next</h2>
+
+  <p>
+    <strong>BIS Working Paper No. 765</strong> — <em>Big data and machine learning in quantitative investment</em>
+    / credit risk (2019):
+    <a href="https://www.bis.org/publ/work765.htm" target="_blank">bis.org/publ/work765.htm</a>
+  </p>
+  <p>
+    Central bank researchers ran a systematic comparison of ML models vs logistic regression on real loan data.
+    It is short (~35 pages), rigorous, and directly relevant to what this lesson covered. Focus on Section 3
+    (credit risk application) and the discrimination / calibration results.
+  </p>
+
+  <!-- ── Next Lesson ── -->
+  <h2>What comes next</h2>
+
+  <p>
+    The next lesson covers <strong>LGD Estimation</strong> — how ML models predict loss severity, why the
+    output distribution is bimodal (0 and 1 dominate), and the model risk challenges specific to LGD
+    under the downturn requirement.
+  </p>
+
+  <p>
+    You can also explore:
+  </p>
+  <ul>
+    <li><a href="0002-lgd-estimation.html">Lesson 2: LGD Estimation with ML</a> (coming soon)</li>
+    <li><a href="../reference/credit-risk-glossary.html">Reference: Credit Risk Glossary</a></li>
+  </ul>
+
+  <!-- ── Footer ── -->
+  <div class="lesson-footer">
+    <p>
+      Questions? Ask your teacher — type your question directly in the chat and continue the conversation.
+      The agent can explain any concept, add examples, or go deeper on anything here.
+    </p>
+    <p style="margin-top: 0.5rem;">
+      Lesson 1 of the <em>AI/ML in Banking &amp; Finance</em> course ·
+      <a href="../RESOURCES.md">Resources</a>
+    </p>
+  </div>
+
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 19: Capital Markets Product Pricing</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<div class="page">
+  <div class="lesson-meta">Lesson 19 · Capital Markets</div>
+  <h1>Capital Markets Product Pricing</h1>
+  <p class="subtitle">From Black-Scholes to ML vol surface calibration — how derivative pricing evolved from closed-form formulas to hybrid ML/financial-model frameworks.</p>
+
+  <h2>1. Why derivative pricing is different from credit risk modelling</h2>
+  <p>Credit risk ML (Lessons 1–4, 12–13) focuses on predicting real-world probabilities — will this borrower default? Derivative pricing operates under the <strong>risk-neutral measure</strong> (Q-measure): prices are computed as expectations under an artificial probability measure calibrated so that all assets grow at the risk-free rate. This framework ensures no-arbitrage but disconnects model dynamics from real-world statistical behaviour.</p>
+  <p>The key challenge for ML in capital markets pricing: the model must be internally consistent (no-arbitrage), calibrate to observable market prices, and price exotic products accurately at speed. These constraints are different from the predictive accuracy objectives in credit ML.</p>
+
+  <h2>2. The volatility surface — the heart of the problem</h2>
+  <p>Black-Scholes assumes a constant volatility σ. In reality, implied volatility (the vol extracted from observed option prices) varies by strike and maturity — forming the <strong>volatility surface</strong>. Key features the surface must capture:</p>
+  <ul>
+    <li><strong>Volatility smile/skew:</strong> out-of-the-money puts trade at higher vol than ATM options (negative skew in equities, due to crash risk premium)</li>
+    <li><strong>Term structure:</strong> vol rises or falls across maturities depending on the macro environment</li>
+    <li><strong>Surface smoothness:</strong> the surface must be free of calendar spread and butterfly arbitrage</li>
+  </ul>
+  <pre>Black-Scholes price (BSP) assumes σ = constant
+Market reality:  σ_implied = σ(K, T) — varies by strike K and expiry T
+
+Vol surface calibration: find σ(K,T) or model parameters that minimise
+  Σ [BSP(σ(K,T)) − Market Price(K,T)]²</pre>
+
+  <h2>3. Parametric vol models — before ML</h2>
+  <p>Three standard approaches to modelling the vol surface:</p>
+  <table>
+    <thead><tr><th>Model</th><th>Key idea</th><th>ML relevance</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Local vol (Dupire, 1994)</strong></td><td>σ is a deterministic function of spot price and time: σ_local(S,t). Calibrates perfectly to today's surface but produces flat dynamics (term structure forecasts are unrealistic).</td><td>Neural networks replace the Dupire PDE — DNNs learn σ_local(S,t) directly from option prices, solving the calibration 100× faster.</td></tr>
+      <tr><td><strong>Stochastic vol (Heston, SABR)</strong></td><td>Volatility itself is a random process. Heston: dv = κ(θ−v)dt + ξ√v dW². Produces realistic vol of vol dynamics but calibration is computationally expensive.</td><td>Neural ODEs fit Heston/SABR parameters from market prices in milliseconds; NN surrogate models replace the characteristic function integrals in Heston pricing.</td></tr>
+      <tr><td><strong>Rough vol (Bergomi, Gatheral)</strong></td><td>Volatility has Hurst exponent H ≈ 0.1 (rougher than Brownian motion). Better fits the short-end of vol surface but very difficult to calibrate analytically.</td><td>Deep calibration (neural networks) is the only practical calibration route for rough vol models — analytic approximations are too slow and inaccurate.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>4. ML approaches to vol surface construction</h2>
+  <p>ML directly constructs the vol surface rather than calibrating a parametric model:</p>
+  <ul>
+    <li><strong>Neural network vol surfaces:</strong> A DNN trained on (K, T, market features) → implied vol. Must enforce arbitrage constraints during training (no calendar spread or butterfly violations). Techniques include constrained optimisation during training or adding a penalty term for arbitrage violations.</li>
+    <li><strong>Gaussian Process (GP) interpolation:</strong> GP fits a smooth surface to market quotes with uncertainty quantification. The GP posterior provides not just the surface estimate but confidence intervals — useful for risk management of illiquid strikes.</li>
+    <li><strong>Deep calibration:</strong> A DNN maps market observables (ATM vol, skew, term structure) → model parameters (e.g., Heston κ, θ, ρ, ξ). Pre-trained offline on thousands of synthetic surfaces; online calibration reduces to a forward pass through the network (milliseconds vs minutes for traditional optimisation).</li>
+  </ul>
+
+  <h2>5. Structured product pricing and Monte Carlo acceleration</h2>
+  <p>Structured products (barrier options, autocallables, CLNs, CPPIs) are priced by Monte Carlo simulation under the calibrated vol model. A 100,000-path Monte Carlo takes minutes per product. For real-time pricing in a structured product desk, this is too slow.</p>
+  <p>ML solutions:</p>
+  <ul>
+    <li><strong>Surrogate/emulator models:</strong> train an XGBoost or DNN on (model parameters, payoff structure) → Monte Carlo price, using pre-computed simulation results as training data. Online pricing is then a fast forward pass. Used in production at major structured product desks.</li>
+    <li><strong>Differential ML (Huge &amp; Savine, 2020):</strong> simultaneously train a neural network to produce the price <em>and</em> its Greeks (sensitivities to market parameters) — the gradient of the network with respect to inputs gives the Greeks analytically. Produces very accurate Greeks that would otherwise require bump-and-revalue approaches.</li>
+    <li><strong>Neural SDE pricing:</strong> parameterise the asset price SDE as a neural network (Neural SDE). Train on option prices across strikes and maturities. Provides a generative model of the asset price that prices all payoffs by simulation under the learned SDE.</li>
+  </ul>
+
+  <h2>6. XVA integration — the pricing meets the CCR lesson</h2>
+  <p>Recall from Lesson 13 (CCR/XVA): the fair value of an OTC derivative includes CVA, DVA, FVA, MVA, and KVA adjustments. These XVA terms require simulation of the full future exposure profile. ML accelerates XVA via:</p>
+  <ul>
+    <li>NN surrogate models for exposure simulation (replacing Monte Carlo)</li>
+    <li>Differential ML for XVA Greeks — needed for hedging and risk management</li>
+    <li>Clustering counterparty exposure profiles to reduce the number of paths needed</li>
+  </ul>
+
+  <div class="callout risk">
+    <div class="callout-label">Model risk in pricing models</div>
+    Pricing model risk is severe: a model error does not just mis-state P&L — it creates systematic mispricing that generates real trading losses. ML pricing models must satisfy: (1) no-arbitrage constraints in the output surface, (2) stability of Greeks for hedging, (3) interpretability for trader challenge ("why is the model pricing this barrier 50bps wide of consensus?"). SR 11-7 and PRA SS1/23 apply to pricing models just as to credit models. Numerical stability and out-of-distribution behaviour (extreme strikes, very short expiries) require particular attention.
+  </div>
+
+  <hr>
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+    <div class="question">
+      <p>1. Why does the volatility surface need to be arbitrage-free, and what type of arbitrage constraint is most often violated by naive ML interpolation?</p>
+      <div class="options">
+        <button class="option" data-correct="false">It must be arbitrage-free to comply with MiFID II reporting requirements</button>
+        <button class="option" data-correct="true">A surface with calendar spread arbitrage (shorter-dated option more expensive than longer-dated) implies negative implied variance — which creates riskless profit from a static option portfolio</button>
+        <button class="option" data-correct="false">Arbitrage-free constraints are purely aesthetic — traders prefer smooth surfaces</button>
+        <button class="option" data-correct="false">Only butterfly arbitrage matters; calendar spread arbitrage is too complex to exploit</button>
+      </div>
+      <div class="feedback good">Correct. Calendar spread arbitrage occurs when implied total variance decreases with maturity — implying negative variance in the intermediate period, which is mathematically impossible for a non-negative process. A naive ML-interpolated surface can easily produce this if the interpolation is not monotone in variance. This allows a riskless profit: buy the short-dated option, sell the long-dated one, and net a positive premium for a position with no downside. Arbitrage-free constraints must be built into the ML training or post-processing.</div>
+      <div class="feedback bad">An arbitrage-free surface is not cosmetic — it's mathematically necessary. A calendar spread arbitrage (shorter expiry more expensive than longer in total variance terms) implies negative forward variance, which a real asset price process cannot have. This creates a static riskless profit for anyone who spots it. Naive ML interpolation across maturities without monotonicity constraints on total variance will produce this violation, making the surface unpriceable by a consistent model.</div>
+    </div>
+    <div class="question">
+      <p>2. What is the key advantage of "deep calibration" over traditional numerical optimisation for model calibration?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Deep calibration produces models with fewer parameters, making validation simpler</button>
+        <button class="option" data-correct="true">Online calibration reduces to a fast neural network forward pass — milliseconds rather than minutes — because the expensive optimisation was done offline during training</button>
+        <button class="option" data-correct="false">Deep calibration is mathematically guaranteed to find the global optimum, unlike local optimisers</button>
+        <button class="option" data-correct="false">Deep calibration eliminates model risk by not using any parametric assumptions</button>
+      </div>
+      <div class="feedback good">Correct. Traditional calibration solves an optimisation problem at each timestamp — iteratively adjusting model parameters until model prices match market prices. This takes minutes per calibration. Deep calibration pre-trains a neural network (offline) to learn the mapping from market observables to model parameters across thousands of synthetic surfaces. At runtime, calibration is just one forward pass through the network — fast enough for real-time trading and end-of-day risk.</div>
+      <div class="feedback bad">Deep calibration front-loads the computation. Offline training teaches a DNN to map market observables (ATM vol, skew, term structure shape) directly to model parameters (e.g., Heston κ, θ, ρ, ξ, v₀). At runtime, calibration is one forward pass — milliseconds. Traditional calibration solves a new optimisation problem each time, taking minutes. In a live derivatives desk, minutes-per-calibration is too slow for real-time pricing and hedging.</div>
+    </div>
+    <div class="question">
+      <p>3. How does Differential ML (Huge &amp; Savine) produce Greeks more efficiently than bump-and-revalue?</p>
+      <div class="options">
+        <button class="option" data-correct="false">It samples fewer Monte Carlo paths by using importance sampling</button>
+        <button class="option" data-correct="true">The neural network's gradient with respect to inputs analytically gives the Greeks — no additional price evaluations needed</button>
+        <button class="option" data-correct="false">It uses finite difference approximations at closer bump sizes than traditional methods</button>
+        <button class="option" data-correct="false">It replaces Greeks with scenario-based P&L attribution that is cheaper to compute</button>
+      </div>
+      <div class="feedback good">Correct. In a neural network pricing model, the price is a function of inputs (spot, vol, rate, etc.). Automatic differentiation gives ∂Price/∂Input analytically — these ARE the Greeks. Bump-and-revalue recomputes the price thousands of times with small perturbations to each input to estimate the same quantities numerically — far slower and noisier. Differential ML trains the network to match both prices AND their gradients (using pathwise derivative estimates from simulation), making the resulting Greeks very accurate.</div>
+      <div class="feedback bad">Bump-and-revalue estimates Greeks by perturbing each input and re-running the pricer: N inputs means N extra price evaluations, each potentially slow. In Differential ML, the neural network computes ∂price/∂inputs analytically via automatic differentiation — one forward pass gives both the price and all first-order Greeks simultaneously. Training also uses the gradients from simulation (pathwise derivatives) to supervise the network's gradient behavior, producing accurate Greeks without the noise of finite differences.</div>
+    </div>
+    <div class="quiz-score"></div>
+  </div>
+  <hr>
+  <h2>Primary source to read next</h2>
+  <p><strong>Huge &amp; Savine — "Differential Machine Learning" (arXiv:2005.02347, 2020)</strong><br>
+  <a href="https://arxiv.org/abs/2005.02347" target="_blank">arxiv.org/abs/2005.02347</a></p>
+  <p>The canonical paper on ML for derivative pricing Greeks. Shows how to train neural networks on pathwise derivatives to produce fast, accurate Greeks for exotic products. Pair with Gatheral's "Volatility Surface" textbook for the underlying financial theory.</p>
+  <h2>What comes next</h2>
+  <ul>
+    <li><a href="0018-asset-management.html">← Lesson 18: Asset Management</a></li>
+    <li><a href="0020-insurance-ifrs17.html">Lesson 20: Insurance Models — IFRS17 →</a></li>
+  </ul>
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — Heston vs SABR calibration, arbitrage-free surface construction, or Neural SDE pricing are all worth discussing further.</p>
+    <p style="margin-top:.5rem;">Lesson 19 · <em>AI/ML in Banking &amp; Finance</em> · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

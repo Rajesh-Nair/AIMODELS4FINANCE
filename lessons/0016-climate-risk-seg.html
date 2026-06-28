@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 16: Climate Risk &amp; Scenario Generation</title>
+<link rel="stylesheet" href="../assets/styles.css">
+<style>
+  .risk-split{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin:1.2rem 0;}
+  .risk-card{border:1px solid var(--rule);border-radius:5px;padding:.9rem 1rem;font-family:var(--font-sans);font-size:.83rem;}
+  .risk-card h4{font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem;font-weight:700;}
+  .risk-card.phys{border-left:3px solid var(--warn);} .risk-card.phys h4{color:var(--warn);}
+  .risk-card.tran{border-left:3px solid var(--accent);} .risk-card.tran h4{color:var(--accent);}
+  @media(max-width:560px){.risk-split{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="lesson-meta">Lesson 16 · Climate &amp; ESG Risk</div>
+  <h1>Climate Risk &amp; Scenario Generation</h1>
+  <p class="subtitle">How physical and transition risks transmit into credit, market, and liquidity losses — and how ML extends scenario frameworks into climate territory with little historical data.</p>
+
+  <h2>1. Two types of climate risk</h2>
+  <div class="risk-split">
+    <div class="risk-card phys">
+      <h4>Physical Risk</h4>
+      Losses from climate-related physical events: acute (floods, hurricanes, wildfires) and chronic (sea-level rise, heat stress, changing rainfall patterns).<br><br>
+      <strong>Financial channel:</strong> collateral value destruction (flooded properties), supply chain disruption (corporate borrower revenues), stranded assets<br><br>
+      <strong>Examples:</strong> A mortgage portfolio on UK flood-plain properties; a corporate loan to a coastal manufacturer
+    </div>
+    <div class="risk-card tran">
+      <h4>Transition Risk</h4>
+      Losses from the economic adjustment to a low-carbon economy: policy changes (carbon taxes, emissions trading), technology shifts (EV replacing ICE vehicles), reputational changes.<br><br>
+      <strong>Financial channel:</strong> stranded assets (fossil fuel reserves), sector repricing (oil & gas, steel, aviation), competitive disruption<br><br>
+      <strong>Examples:</strong> Loans to coal miners, car manufacturers, high-carbon real estate
+    </div>
+  </div>
+
+  <div class="callout info">
+    <div class="callout-label">TCFD and regulatory requirements</div>
+    The <strong>Task Force on Climate-related Financial Disclosures (TCFD)</strong> framework requires banks to disclose climate risks across physical and transition dimensions. The PRA's <a href="https://www.bankofengland.co.uk/prudential-regulation/publication/2019/enhancing-banks-and-insurers-approaches-to-managing-the-financial-risks-from-climate-change-ss" target="_blank">SS3/19</a>, the ECB's supervisory expectations, and the Bank of England's Climate Biennial Exploratory Scenario (CBES) have made climate stress testing mandatory for major UK and European banks.
+  </div>
+
+  <h2>2. NGFS climate scenarios</h2>
+  <p>The <strong>Network for Greening the Financial System (NGFS)</strong> provides the standard scenario framework used by central banks and supervisors globally. Three broad families:</p>
+  <table>
+    <thead><tr><th>Scenario family</th><th>Transition speed</th><th>Physical risk</th><th>Key financial impact</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Orderly (Net Zero 2050)</strong></td><td>Early, smooth transition</td><td>Low — warming contained to ~1.5°C</td><td>Moderate transition costs; low physical damage; manageable for banks</td></tr>
+      <tr><td><strong>Disorderly (Delayed Transition)</strong></td><td>Late, abrupt transition</td><td>Moderate — 1.8–2°C warming</td><td>High sudden transition costs; carbon prices spike; stranded assets across sectors</td></tr>
+      <tr><td><strong>Hot House World (Current Policies)</strong></td><td>Minimal transition</td><td>Very high — 3°C+ warming by 2100</td><td>Severe physical damages; agricultural disruption; GDP losses in tropical/coastal economies</td></tr>
+    </tbody>
+  </table>
+
+  <h2>3. How climate risk transmits into financial risk</h2>
+  <p>Climate is not a standalone risk type — it <em>amplifies</em> existing financial risks through transmission channels:</p>
+  <ul>
+    <li><strong>Credit risk:</strong> physical damage destroys collateral value (flooded mortgages); transition disrupts borrower revenue (carbon-intensive sector loans → higher PD). The IFRS9 ECL model must incorporate climate-adjusted PD and LGD.</li>
+    <li><strong>Market risk:</strong> carbon pricing and transition policy changes repricing equity and fixed income portfolios. Oil & gas equities fall; green infrastructure rises. Sudden policy announcements create VaR-event-scale volatility.</li>
+    <li><strong>Liquidity risk:</strong> climate events can trigger sudden deposit outflows (affected communities) and funding market stress (if climate concerns trigger bank-run dynamics for high-carbon lenders).</li>
+    <li><strong>Operational risk:</strong> physical damage to bank infrastructure (data centres, branch networks) from acute climate events.</li>
+  </ul>
+
+  <h2>4. Scenario Expansion and Generation (SEG) with ML</h2>
+  <p>Climate scenario modelling faces a <strong>data scarcity problem</strong>: the climate scenarios we most need to stress-test (severe physical damage, abrupt transition) have no historical precedent. This is where SEG techniques — using ML to expand and generate scenarios — are most valuable.</p>
+
+  <h3>Scenario expansion</h3>
+  <p>Regulatory scenarios (NGFS) provide macro-level outputs: GDP, unemployment, carbon prices, sector revenues. Banks need these translated into thousands of granular risk factor paths — individual credit spreads, property values by postcode, sector-level PDs. ML (particularly GANs and VAEs trained on historical macro-financial relationships) expands the sparse scenario set into a rich distribution of plausible paths consistent with the macro narrative.</p>
+
+  <h3>Physical risk ML: geospatial models</h3>
+  <p>Physical risk assessment requires mapping individual exposures (properties, infrastructure) to climate hazard data at a granular level:</p>
+  <pre>Physical risk score(property) = f(flood_zone, elevation, coastal_proximity,
+                                   historical_damage_events, future_hazard_projection,
+                                   adaptation_measures, building_vintage)
+
+ML approach: Random Forest / XGBoost on geospatial features → property-level
+             climate vulnerability score → LGD adjustment for mortgages</pre>
+
+  <h3>Transition risk: sector carbon intensity models</h3>
+  <p>For corporate loan portfolios, transition risk is modelled by estimating each borrower's exposure to carbon pricing:</p>
+  <ul>
+    <li>Map borrowers to NACE/SIC sectors and estimate Scope 1, 2, 3 emissions intensity</li>
+    <li>Apply carbon price paths from the NGFS scenario to estimate added cost burden</li>
+    <li>Translate cost burden → EBITDA impact → PD uplift under each scenario</li>
+    <li>ML improves the EBITDA-to-PD transmission: non-linear impacts at high carbon cost levels, sector-specific adjustment curves learned from historical carbon price episodes</li>
+  </ul>
+
+  <h2>5. Climate-adjusted ECL and IFRS9 overlay</h2>
+  <p>Most banks currently apply climate risk to IFRS9 as a <strong>management overlay</strong> on top of their standard ECL models — largely because climate-adjusted PD models are still being developed. The overlay approach:</p>
+  <ol>
+    <li>Identify climate-sensitive segments of the portfolio (high flood-risk mortgages, fossil fuel sector loans)</li>
+    <li>Estimate the climate-scenario ECL uplift for each segment (from physical/transition analysis)</li>
+    <li>Apply as an overlay to the base ECL, documented and approved via MRC</li>
+    <li>Disclose the overlay quantum in TCFD reporting and auditor-reviewed climate disclosures</li>
+  </ol>
+
+  <div class="callout risk">
+    <div class="callout-label">Model risk in climate models</div>
+    Climate models carry model risk of a distinctive type: uncertainty spans centuries and involves physical science, economics, and policy — all highly uncertain. Validators cannot back-test climate models against realised outcomes. The standard response is scenario-based uncertainty quantification (show results under multiple NGFS scenarios) and explicit documentation of key assumptions. The FRC and PRA are increasingly scrutinising the basis for climate overlay amounts.
+  </div>
+
+  <hr>
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+    <div class="question">
+      <p>1. A bank has a large mortgage book on UK flood-plain properties. Which type of climate risk primarily affects these mortgages?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Transition risk — carbon taxes will increase mortgage rates</button>
+        <button class="option" data-correct="true">Physical risk — flood events damage properties, reducing collateral value and increasing LGD</button>
+        <button class="option" data-correct="false">Both equally — flood-plain properties are exposed to both risk types</button>
+        <button class="option" data-correct="false">Neither — mortgage LGD is not affected by climate events</button>
+      </div>
+      <div class="feedback good">Correct. Flood-plain mortgages are primarily exposed to physical climate risk: acute flood events destroy collateral value and may render properties unmortgageable, while chronic sea-level rise causes long-term property price declines. Transition risk (carbon taxes, policy changes) has minimal direct effect on residential property collateral.</div>
+      <div class="feedback bad">Physical risk affects collateral directly. Flood events reduce property values, increase repair costs, and potentially make properties uninsurable (insurers are already withdrawing from high-flood-risk areas). Lower collateral value → higher LGD on defaulted mortgages. Transition risk primarily affects borrowers in carbon-intensive industries — less relevant for residential mortgages.</div>
+    </div>
+    <div class="question">
+      <p>2. In the NGFS "Disorderly" scenario, why are transition costs higher than in the "Orderly" scenario?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Disorderly assumes more severe physical climate damage</button>
+        <button class="option" data-correct="true">Disorderly assumes a late, abrupt policy shift — sudden carbon price spikes and rapid asset repricing rather than gradual adjustment</button>
+        <button class="option" data-correct="false">Disorderly uses higher NGFS discount rates, inflating present values</button>
+        <button class="option" data-correct="false">Disorderly is simply Orderly with a 10-year time delay</button>
+      </div>
+      <div class="feedback good">Correct. The key driver of transition cost magnitude is the speed and predictability of policy change. Early, gradual, predictable transition (Orderly) allows businesses and banks to adjust progressively. Late, sudden transition (Disorderly) means carbon prices must spike sharply to achieve the same emission reductions in less time — creating larger, faster asset repricing and stranded asset creation.</div>
+      <div class="feedback bad">The Disorderly scenario's high transition costs arise from speed, not magnitude of eventual change. Both scenarios reach net zero or similar targets, but Disorderly does so abruptly after delayed action. The sudden carbon price jump and rapid policy change leave less time for business model adjustment, producing larger stranded assets and more disruptive sector repricing than a gradual Orderly transition.</div>
+    </div>
+    <div class="question">
+      <p>3. Why does climate risk SEG (Scenario Expansion and Generation) rely on ML rather than purely using NGFS scenarios directly?</p>
+      <div class="options">
+        <button class="option" data-correct="false">NGFS scenarios are confidential and not available to banks</button>
+        <button class="option" data-correct="true">NGFS provides macro-level outputs; banks need granular risk factor paths (property values by postcode, sector PDs) — ML expands sparse macro scenarios into the granular distributions needed for portfolio-level analysis</button>
+        <button class="option" data-correct="false">NGFS scenarios are only valid for 5-year horizons and ML extends them to 30 years</button>
+        <button class="option" data-correct="false">ML improves NGFS accuracy by correcting errors in the physical science models</button>
+      </div>
+      <div class="feedback good">Correct. NGFS scenarios describe macro pathways: GDP growth, unemployment, carbon prices, temperature. A bank's credit portfolio needs risk factor granularity: flood risk by postcode, PD uplift by NACE sector, property price by region and vintage. ML learns the macro-to-granular relationships from historical data and uses them to expand the handful of NGFS scenarios into the thousands of granular paths needed for a full ECL calculation.</div>
+      <div class="feedback bad">NGFS scenarios are public but sparse — a few macroeconomic variables across three scenario families. Loan-level climate risk assessment requires granular data: property-level flood depth, sector-level carbon cost burden, regional property price paths. ML bridges the gap by learning historical macro-to-granular relationships and extrapolating them into climate scenario space, producing the portfolio-level inputs that NGFS scenarios alone cannot provide.</div>
+    </div>
+    <div class="quiz-score"></div>
+  </div>
+  <hr>
+  <h2>Primary source to read next</h2>
+  <p><strong>NGFS — "NGFS Climate Scenarios for central banks and supervisors" (latest version)</strong><br>
+  <a href="https://www.ngfs.net/en/publications/ngfs-climate-scenarios-central-banks-and-supervisors" target="_blank">ngfs.net — Climate Scenarios</a></p>
+  <p>The authoritative scenario framework used by all major central banks. The technical documentation explains the NGFS scenario families, IAM models, and how macro outputs are constructed. Pair with PRA SS3/19 for the UK regulatory expectations on climate risk management.</p>
+  <h2>What comes next</h2>
+  <ul>
+    <li><a href="0015-liquidity-risk.html">← Lesson 15: Liquidity Risk</a></li>
+    <li><a href="0017-economic-capital.html">Lesson 17: Economic Capital Models →</a></li>
+  </ul>
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — the NGFS scenario families, physical vs transition transmission channels, or climate-adjusted ECL methodology are all worth discussing further.</p>
+    <p style="margin-top:.5rem;">Lesson 16 · <em>AI/ML in Banking &amp; Finance</em> · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

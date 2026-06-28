@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 13: Counterparty Credit Risk — CVA &amp; PFE</title>
+<link rel="stylesheet" href="../assets/styles.css">
+<style>
+  .xva-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.8rem;
+    margin: 1.2rem 0;
+  }
+  .xva-card {
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    padding: 0.85rem 1rem;
+    font-family: var(--font-sans);
+    font-size: 0.83rem;
+  }
+  .xva-card h4 {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.3rem;
+    font-weight: 700;
+  }
+  .xva-card.cva { border-left: 3px solid var(--warn); }
+  .xva-card.cva h4 { color: var(--warn); }
+  .xva-card.dva { border-left: 3px solid var(--success); }
+  .xva-card.dva h4 { color: var(--success); }
+  .xva-card.fva { border-left: 3px solid #8b6914; }
+  .xva-card.fva h4 { color: #8b6914; }
+  .xva-card.mva { border-left: 3px solid #5a2d9e; }
+  .xva-card.mva h4 { color: #5a2d9e; }
+  .profile-wrap {
+    background: var(--neutral);
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    padding: 1rem;
+    margin: 1.2rem 0;
+    text-align: center;
+  }
+  .profile-wrap canvas { display: block; margin: 0 auto; }
+  .profile-wrap p { font-family: var(--font-sans); font-size: 0.78rem; color: var(--muted); margin: 0.4rem 0 0; }
+  @media (max-width:560px) { .xva-grid { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="lesson-meta">Lesson 13 · Market Risk &amp; Trading</div>
+  <h1>Counterparty Credit Risk: CVA &amp; PFE</h1>
+  <p class="subtitle">
+    Why derivative exposure is fundamentally different from loan exposure — and how ML makes the simulation cheaper and the pricing more accurate.
+  </p>
+
+  <!-- 1 -->
+  <h2>1. What makes counterparty credit risk different</h2>
+
+  <p>
+    In a <strong>loan</strong>, the exposure is known: the bank lends £1m and the worst case is
+    losing £1m. In a <strong>derivative contract</strong> (an interest rate swap, FX forward,
+    credit default swap), the exposure depends on future market movements that neither party
+    controls:
+  </p>
+
+  <ul>
+    <li>If rates move in your favour, the counterparty owes you money — you have credit exposure</li>
+    <li>If rates move against you, you owe them money — your exposure is zero (you would pay, not receive)</li>
+    <li>This exposure can fluctuate from zero to very large over the life of the contract</li>
+  </ul>
+
+  <p>
+    <strong>Counterparty Credit Risk (CCR)</strong> is the risk that a counterparty defaults
+    <em>at a time when the derivative has positive value to the bank</em>. It requires modelling
+    not just the counterparty's creditworthiness (as in loan PD), but also the <em>joint
+    distribution of market variables and default events</em> — a fundamentally harder problem.
+  </p>
+
+  <!-- 2 -->
+  <h2>2. Potential Future Exposure (PFE)</h2>
+
+  <p>
+    <strong>PFE</strong> measures the worst-case exposure at a given confidence level (typically
+    95% or 97.5%) over time. Unlike a loan's fixed exposure, PFE is a <em>path</em> — it shows
+    how credit exposure could evolve over the contract's life:
+  </p>
+
+  <div class="profile-wrap">
+    <canvas id="pfeChart" width="580" height="200"></canvas>
+    <p>Stylised exposure profile for an interest rate swap. EE = Expected Exposure (average across scenarios); PFE = 95th percentile. Both are zero at maturity (contract ends). The hump shape reflects increasing uncertainty early, then amortisation as the trade approaches expiry.</p>
+  </div>
+
+  <p>
+    PFE is computed via <strong>Monte Carlo simulation</strong>: generate thousands of future
+    market scenarios (interest rate paths, FX paths, credit spread paths), compute the mark-to-market
+    value of the derivative in each scenario and at each future date, take the 95th percentile
+    across scenarios at each date. This is computationally intensive — a large dealer bank may
+    have millions of derivative trades, each requiring thousands of simulation paths.
+  </p>
+
+  <!-- 3 -->
+  <h2>3. CVA — the price of counterparty risk</h2>
+
+  <p>
+    <strong>CVA (Credit Valuation Adjustment)</strong> is the market value of counterparty credit
+    risk: how much should the bank discount the derivative's fair value to account for the
+    possibility that the counterparty defaults before maturity?
+  </p>
+
+  <pre>CVA ≈ −LGD × Σₜ EE(t) × PD(t, t+Δt) × DF(t)
+
+where:
+  EE(t)         = Expected Exposure at time t
+  PD(t, t+Δt)  = Marginal probability of default in [t, t+Δt]
+  DF(t)         = Discount factor to today
+  LGD           = Loss Given Default (typically 40–60% for derivatives)</pre>
+
+  <p>
+    CVA is <strong>marked to market daily</strong> — it moves as credit spreads, interest rates,
+    and FX rates move. When a counterparty's CDS spread widens (creditworthiness deteriorates),
+    CVA increases (the derivative becomes worth less to the bank). This daily P&amp;L volatility
+    is captured in the <strong>CVA desk</strong> — a specialised trading desk that hedges CVA.
+  </p>
+
+  <!-- 4 -->
+  <h2>4. The XVA family</h2>
+
+  <div class="xva-grid">
+    <div class="xva-card cva">
+      <h4>CVA — Credit Valuation Adjustment</h4>
+      Cost of counterparty default risk to the bank. Reduces derivative fair value. <em>The bank's cost of the counterparty's credit risk.</em>
+    </div>
+    <div class="xva-card dva">
+      <h4>DVA — Debit Valuation Adjustment</h4>
+      Mirror of CVA: the counterparty's cost of <em>the bank's</em> credit risk. Increases derivative value when the bank's own credit deteriorates. Controversial — recognising a gain when your own credit worsens.
+    </div>
+    <div class="xva-card fva">
+      <h4>FVA — Funding Valuation Adjustment</h4>
+      Cost of funding uncollateralised derivatives. When a derivative is not collateralised (no CSA), the bank must fund the exposure from its balance sheet — FVA captures this funding cost.
+    </div>
+    <div class="xva-card mva">
+      <h4>MVA — Margin Valuation Adjustment</h4>
+      Cost of posting initial margin under SIMM (Standard Initial Margin Model, mandatory for bilateral derivatives under IM regulation). The cost of tying up collateral at CCPs or bilateral counterparties.
+    </div>
+  </div>
+
+  <div class="callout info">
+    <div class="callout-label">KVA — Capital Valuation Adjustment</div>
+    A fifth adjustment — KVA (Capital VA) — captures the cost of holding regulatory capital
+    against the derivative over its lifetime. Less universally adopted but important for
+    full trade economics. The total XVA package (CVA + DVA + FVA + MVA + KVA) is subtracted
+    from the "risk-free" derivative fair value to get the fully loaded price.
+  </div>
+
+  <!-- 5 -->
+  <h2>5. Where ML enters CCR</h2>
+
+  <h3>Neural network exposure approximation (surrogate models)</h3>
+  <p>
+    The central computational bottleneck in CCR is the Monte Carlo simulation for PFE and CVA.
+    Running full repricing simulations for millions of trades across thousands of scenarios is
+    extremely expensive — particularly for the real-time CVA sensitivities needed by the
+    CVA desk for hedging.
+  </p>
+  <p>
+    <strong>Neural network surrogate models</strong> (also called metamodels or emulators) learn
+    the mapping from market risk factors to derivative value across the simulation scenarios,
+    replacing the full pricer with a fast approximation:
+  </p>
+  <pre>Full pricer: V = f(rates, spreads, FX, vol, ...) → expensive, 0.1–100ms per call
+NN surrogate: V̂ = g_θ(rates, spreads, FX, vol, ...) → ~1μs per call
+
+Accuracy: |V − V̂| < ε for well-trained surrogate on in-distribution scenarios</pre>
+
+  <p>
+    The speedup enables real-time CVA sensitivities (Greeks), scenario-based XVA, and
+    intraday PFE updates that would be computationally infeasible with full repricing.
+  </p>
+
+  <h3>Wrong-Way Risk (WWR) detection</h3>
+  <p>
+    <strong>Wrong-Way Risk</strong> occurs when the counterparty's default probability is
+    positively correlated with the derivative's exposure: the counterparty is most likely to
+    default exactly when the trade is most in-the-money to the bank. This amplifies CVA beyond
+    what independence-assuming models would predict.
+  </p>
+  <p>
+    ML models — particularly tree-based models and neural networks — can capture the non-linear
+    correlation structure between market risk factors and counterparty credit quality that
+    linear WWR models miss.
+  </p>
+
+  <h3>Initial Margin (SIMM) and MVA optimisation</h3>
+  <p>
+    Under bilateral margin regulation, initial margin is computed using ISDA's SIMM model.
+    ML is used to optimise trade structures that minimise IM requirements — given the
+    high cost of MVA, traders actively seek IM-efficient hedges. Reinforcement learning
+    for portfolio compression (finding trades that reduce IM at minimal economic impact)
+    is an active research area at large dealer banks.
+  </p>
+
+  <!-- 6 -->
+  <h2>6. FRTB-CVA: the new regulatory capital framework</h2>
+
+  <p>
+    The <strong>FRTB-CVA</strong> framework (part of Basel IV / FRTB, finalisaed 2019) significantly
+    changed how banks must capitalise CVA risk. Three approaches:
+  </p>
+
+  <table>
+    <thead>
+      <tr><th>Approach</th><th>Method</th><th>Who uses it</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>BA-CVA</strong> (Basic)</td>
+        <td>Supervisory formula using notional × credit spread × duration. Simple but high capital.</td>
+        <td>Smaller banks, limited derivatives books</td>
+      </tr>
+      <tr>
+        <td><strong>SA-CVA</strong> (Standard)</td>
+        <td>Sensitivity-based: compute CVA sensitivities to market risk factors, apply regulatory risk weights. Requires full CVA delta, vega, curvature computation.</td>
+        <td>Mid-tier and large banks with the systems to compute sensitivities</td>
+      </tr>
+      <tr>
+        <td><strong>IMA-CVA</strong> (Internal)</td>
+        <td>Full internal model approval — own ES model for CVA P&amp;L. Highest complexity, lowest capital (potentially). Rarely approved by regulators.</td>
+        <td>Largest global dealer banks only</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout risk">
+    <div class="callout-label">Model risk in CCR</div>
+    CVA models require <em>simultaneous</em> market risk modelling (for exposure) and credit risk
+    modelling (for PD and LGD). Model validation teams need cross-disciplinary expertise rarely
+    found in a single team. The interaction between wrong-way risk, correlation assumptions, and
+    netting set structure makes CCR one of the most complex validation challenges in banking.
+    SR 11-7 applies, and CCR models are invariably High-tier.
+  </div>
+
+  <hr>
+
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+
+    <div class="question">
+      <p>1. A bank has an interest rate swap with a counterparty where the bank receives fixed / pays floating. Rates fall sharply. What happens to the bank's CVA?</p>
+      <div class="options">
+        <button class="option" data-correct="false">CVA decreases — falling rates reduce the bank's exposure</button>
+        <button class="option" data-correct="true">CVA increases — the swap is now in-the-money to the bank (exposure increases), so the cost of counterparty default is higher</button>
+        <button class="option" data-correct="false">CVA is unaffected by rate movements — it only depends on credit spreads</button>
+        <button class="option" data-correct="false">CVA decreases because the floating leg payments are now lower</button>
+      </div>
+      <div class="feedback good">Correct. When rates fall, the present value of the fixed receipts the bank is due exceeds the floating payments — the swap is in-the-money (positive MTM for the bank). A counterparty defaulting now would cost the bank more. CVA rises because the expected exposure (EE) has increased. Both market moves and credit spread changes affect CVA daily.</div>
+      <div class="feedback bad">CVA = cost to the bank of counterparty default. When rates fall, the receive-fixed swap becomes in-the-money — the bank is owed more. A counterparty default now causes a larger loss. Higher EE → higher CVA. CVA moves with both market risk factors (affecting exposure) and credit spreads (affecting default probability). The CVA desk hedges both dimensions.</div>
+    </div>
+
+    <div class="question">
+      <p>2. What is Wrong-Way Risk (WWR) in CCR, and why does it amplify CVA beyond standard model assumptions?</p>
+      <div class="options">
+        <button class="option" data-correct="false">WWR occurs when a derivative has negative value at maturity, creating an unexpected loss</button>
+        <button class="option" data-correct="true">WWR occurs when the counterparty's default probability is positively correlated with exposure — they are most likely to default when the trade is most in-the-money to the bank</button>
+        <button class="option" data-correct="false">WWR refers to trades executed on the wrong side of the bid-offer spread</button>
+        <button class="option" data-correct="false">WWR occurs when initial margin is insufficient to cover exposure at default</button>
+      </div>
+      <div class="feedback good">Correct. Standard CVA assumes independence between exposure and default probability. WWR arises when they are correlated: the market move that makes the trade valuable to the bank is the same move that pushes the counterparty toward default (e.g., a commodity producer selling commodity forwards — if commodity prices fall, the bank has high exposure AND the counterparty is financially stressed). CVA under WWR can be multiples of the independence assumption.</div>
+      <div class="feedback bad">WWR is a correlation problem. The independence assumption in the standard CVA formula (EE computed separately from PD) breaks down when the market factor driving exposure is correlated with the counterparty's credit quality. Classic example: a mining company selling gold forwards to the bank — when gold prices fall, the bank's exposure (receiving gold price) is high AND the mining company is financially stressed. This positive correlation amplifies CVA significantly.</div>
+    </div>
+
+    <div class="question">
+      <p>3. Why are neural network surrogate models valuable for CVA computation?</p>
+      <div class="options">
+        <button class="option" data-correct="false">They eliminate the need for Monte Carlo simulation entirely</button>
+        <button class="option" data-correct="false">They allow banks to bypass regulatory approval for internal CVA models</button>
+        <button class="option" data-correct="true">They replace expensive per-scenario full repricing with a fast approximation, enabling real-time CVA sensitivities and intraday PFE updates at scale</button>
+        <button class="option" data-correct="false">They improve CVA model accuracy by learning from historical default events</button>
+      </div>
+      <div class="feedback good">Correct. Full derivative repricing per scenario can take milliseconds to seconds per trade. At millions of trades × thousands of scenarios × multiple time steps, this is computationally prohibitive for real-time use. A trained NN surrogate approximates the same mapping in microseconds — 1,000–100,000× faster — enabling real-time Greeks computation, intraday scenario analysis, and live XVA pricing on a trading desk.</div>
+      <div class="feedback bad">The surrogate model's value is speed. Full Monte Carlo repricing per derivative is 0.1–100ms; a trained neural network achieves ~1μs for the same mapping. This 1,000× speedup transforms what was a nightly batch calculation into a real-time tool: CVA Greeks for live hedging, intraday PFE for risk monitoring, instant XVA pricing for new trade evaluation. The model doesn't eliminate simulation — it compresses it.</div>
+    </div>
+
+    <div class="question">
+      <p>4. FVA (Funding Valuation Adjustment) applies specifically to which type of derivative?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Exchange-traded derivatives cleared through a CCP</button>
+        <button class="option" data-correct="false">Any derivative where the counterparty has a low credit rating</button>
+        <button class="option" data-correct="true">Uncollateralised bilateral OTC derivatives — where there is no CSA requiring daily margin exchange</button>
+        <button class="option" data-correct="false">All derivatives with remaining maturity greater than one year</button>
+      </div>
+      <div class="feedback good">Correct. FVA captures the funding cost of positions that are not collateralised. When a derivative has no CSA (Credit Support Annex requiring margin posting), the bank must fund any in-the-money position from its own balance sheet. Collateralised trades hedge this funding risk naturally — daily margin exchange means exposure is almost always near zero. FVA is specifically the cost of the funding mismatch on uncollateralised trades.</div>
+      <div class="feedback bad">FVA arises from funding mismatch on uncollateralised trades. Under a CSA, margin is posted daily — exposure stays near zero, no funding is needed. Without a CSA, the bank funds the in-the-money position from its balance sheet at its own cost of funds. FVA charges the trade for this funding cost. Post-2008 mandatory clearing rules pushed many standard derivatives to CCPs (eliminating FVA), but bespoke/exotic OTC trades remain uncollateralised and carry FVA.</div>
+    </div>
+
+    <div class="quiz-score"></div>
+  </div>
+
+  <hr>
+
+  <h2>Primary source to read next</h2>
+  <p>
+    <strong>Gregory, Jon — <em>The xVA Challenge</em> (4th ed., Wiley, 2020)</strong><br>
+    <a href="https://www.wiley.com/en-us/The+xVA+Challenge%2C+4th+Edition-p-9781119508977" target="_blank">wiley.com — The xVA Challenge</a>
+  </p>
+  <p>
+    The definitive practitioner reference on XVA. Chapter 3 (exposure) and Chapter 7 (CVA) are
+    the most directly applicable to this lesson. Covers wrong-way risk, FRTB-CVA, and the
+    computational challenges in depth. Dense but comprehensive.
+  </p>
+
+  <h2>What comes next</h2>
+  <ul>
+    <li><a href="0012-ifrs9-cecl-provisioning.html">← Lesson 12: IFRS9 &amp; CECL</a></li>
+    <li><a href="0014-irrbb.html">Lesson 14: IRRBB — Interest Rate Risk in the Banking Book →</a></li>
+  </ul>
+
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — the PFE profile shape, wrong-way risk mechanics, or the XVA desk structure are all worth discussing further.</p>
+    <p style="margin-top:0.5rem;">Lesson 13 of the <em>AI/ML in Banking &amp; Finance</em> course · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+
+</div>
+<script>
+(function () {
+  var canvas = document.getElementById('pfeChart');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+  var pad = { left: 50, right: 20, top: 20, bottom: 40 };
+  var cW = W - pad.left - pad.right, cH = H - pad.top - pad.bottom;
+
+  ctx.fillStyle = '#f5f5f0'; ctx.fillRect(0, 0, W, H);
+
+  var T = 100;
+  function profile(t, sigma, peak) {
+    var x = t / T;
+    return sigma * Math.sqrt(x) * Math.exp(-2.5 * x * x) * peak;
+  }
+
+  var eeVals = [], pfeVals = [];
+  for (var i = 0; i <= T; i++) {
+    eeVals.push(profile(i, 1.0, 1.0));
+    pfeVals.push(profile(i, 1.65, 1.55));
+  }
+
+  var maxV = Math.max.apply(null, pfeVals) * 1.05;
+  var tToX = function (t) { return pad.left + (t / T) * cW; };
+  var vToY = function (v) { return pad.top + cH - (v / maxV) * cH; };
+
+  /* PFE fill */
+  ctx.beginPath();
+  for (var i = 0; i <= T; i++) {
+    var x = tToX(i), y = vToY(pfeVals[i]);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.lineTo(tToX(T), vToY(0)); ctx.lineTo(tToX(0), vToY(0)); ctx.closePath();
+  ctx.fillStyle = 'rgba(139,26,26,0.08)'; ctx.fill();
+  ctx.beginPath();
+  for (var i = 0; i <= T; i++) {
+    var x = tToX(i), y = vToY(pfeVals[i]);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = '#8b1a1a'; ctx.lineWidth = 2; ctx.stroke();
+
+  /* EE fill */
+  ctx.beginPath();
+  for (var i = 0; i <= T; i++) {
+    var x = tToX(i), y = vToY(eeVals[i]);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.lineTo(tToX(T), vToY(0)); ctx.lineTo(tToX(0), vToY(0)); ctx.closePath();
+  ctx.fillStyle = 'rgba(26,77,143,0.10)'; ctx.fill();
+  ctx.beginPath();
+  for (var i = 0; i <= T; i++) {
+    var x = tToX(i), y = vToY(eeVals[i]);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = '#1a4d8f'; ctx.lineWidth = 2; ctx.stroke();
+
+  /* Axes */
+  ctx.strokeStyle = '#888'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad.left, pad.top); ctx.lineTo(pad.left, pad.top + cH); ctx.lineTo(pad.left + cW, pad.top + cH); ctx.stroke();
+
+  /* Labels */
+  ctx.fillStyle = '#8b1a1a'; ctx.font = 'bold 11px system-ui,sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('PFE (95th percentile)', tToX(20), vToY(pfeVals[20]) - 6);
+  ctx.fillStyle = '#1a4d8f';
+  ctx.fillText('EE (Expected Exposure)', tToX(28), vToY(eeVals[28]) + 14);
+  ctx.fillStyle = '#555'; ctx.font = '10px system-ui,sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('Today', tToX(0), pad.top + cH + 16);
+  ctx.fillText('Maturity', tToX(T), pad.top + cH + 16);
+  ctx.fillText('Time →', tToX(T / 2), pad.top + cH + 32);
+  ctx.save(); ctx.translate(14, pad.top + cH / 2); ctx.rotate(-Math.PI/2);
+  ctx.fillText('Exposure', 0, 0); ctx.restore();
+})();
+</script>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

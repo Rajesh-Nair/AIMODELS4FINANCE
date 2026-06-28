@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 15: Liquidity Risk Models</title>
+<link rel="stylesheet" href="../assets/styles.css">
+<style>
+  .metric-split { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin:1.2rem 0; }
+  .metric-card { border:1px solid var(--rule); border-radius:5px; padding:.9rem 1rem; font-family:var(--font-sans); font-size:.83rem; }
+  .metric-card h4 { font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; margin-bottom:.35rem; font-weight:700; }
+  .metric-card.lcr { border-left:3px solid var(--accent); } .metric-card.lcr h4 { color:var(--accent); }
+  .metric-card.nsfr { border-left:3px solid #8b6914; } .metric-card.nsfr h4 { color:#8b6914; }
+  @media(max-width:560px){ .metric-split{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="lesson-meta">Lesson 15 · Liquidity Risk</div>
+  <h1>Liquidity Risk Models</h1>
+  <p class="subtitle">Why a bank can be solvent but still fail in hours — and how ML models the deposit flows that determine survival.</p>
+
+  <h2>1. What liquidity risk is</h2>
+  <p>A bank is <strong>liquid</strong> if it can meet its cash obligations as they fall due. Solvency (having enough capital) is necessary but not sufficient — a bank with ample capital can fail within days if it cannot convert assets to cash fast enough to meet outflows. The 2023 collapse of Silicon Valley Bank took less than 48 hours from the point at which deposit outflows accelerated beyond the bank's liquid asset buffer.</p>
+  <p>Liquidity risk arises from the fundamental banking model: borrow short (deposits, wholesale funding) and lend long (mortgages, corporate loans). The mismatch is profitable in normal conditions and catastrophic in a run.</p>
+
+  <h2>2. The two regulatory liquidity metrics</h2>
+  <div class="metric-split">
+    <div class="metric-card lcr">
+      <h4>LCR — Liquidity Coverage Ratio</h4>
+      <strong>Formula:</strong> HQLA / Net Cash Outflows (30-day stress) ≥ 100%<br><br>
+      <strong>Purpose:</strong> Short-term resilience — ensure the bank can survive a 30-day severe stress without central bank support<br><br>
+      <strong>HQLA:</strong> High Quality Liquid Assets (cash, government bonds, central bank reserves)<br><br>
+      <strong>Net outflows:</strong> Modelled outflows minus modelled inflows, with regulatory run-off rates by liability type
+    </div>
+    <div class="metric-card nsfr">
+      <h4>NSFR — Net Stable Funding Ratio</h4>
+      <strong>Formula:</strong> Available Stable Funding / Required Stable Funding ≥ 100%<br><br>
+      <strong>Purpose:</strong> Structural resilience — ensure long-term assets are funded by stable long-term liabilities<br><br>
+      <strong>ASF:</strong> Equity, long-term debt, stable retail deposits (weighted by stability factors)<br><br>
+      <strong>RSF:</strong> Illiquid assets, off-balance-sheet commitments (weighted by liquidity need)
+    </div>
+  </div>
+
+  <div class="callout info">
+    <div class="callout-label">Run-off rates and the behavioural assumption</div>
+    LCR uses regulatory run-off rates for each liability type under a 30-day stress: retail stable deposits 5%, retail less stable 10%, unsecured wholesale 25–100%, operational deposits 25%. These are Basel-prescribed floors — banks must use at least these rates but can use higher internal estimates if their behavioural data supports it. This is where ML enters.
+  </div>
+
+  <h2>3. ML for deposit flow modelling</h2>
+  <p>The most material modelling challenge in liquidity risk is predicting <strong>deposit outflows under stress</strong>. Basel's prescribed run-off rates are conservative averages; a bank's actual deposit flight depends on:</p>
+  <ul>
+    <li><strong>Customer concentration:</strong> a few large depositors create cliff-edge risk; ML clustering identifies concentration patterns</li>
+    <li><strong>Deposit type and stickiness:</strong> transactional accounts (where salary lands) are stickier than investment accounts; ML segments by behavioural stickiness rather than regulatory category alone</li>
+    <li><strong>Early warning signals:</strong> deposit outflow precursors — declining balance trends, increased ATM usage, opening accounts at competitor banks (via credit bureau data) — are detectable by ML before outflows materialise</li>
+    <li><strong>Contagion and sentiment:</strong> social media sentiment and news coverage of the bank predict depositor panic in ways that transaction data lags; NLP models trained on historical bank-run episodes provide real-time signals</li>
+  </ul>
+  <pre>Deposit outflow model (XGBoost):
+Features: balance trend (30d, 90d), login frequency, product mix,
+          competitor rate differential, customer tenure, segment,
+          social media sentiment score (NLP)
+Target:   probability of >10% outflow within 30 days</pre>
+
+  <h2>4. Survival horizon analysis</h2>
+  <p>Beyond the regulatory LCR, banks run <strong>internal survival horizon analysis</strong>: given a stress scenario with defined outflow assumptions, how many days can the bank survive before exhausting its liquid asset buffer?</p>
+  <pre>Survival horizon = days until: cumulative outflows > HQLA
+                              (accounting for inflows and asset monetisation)</pre>
+  <p>ML improves survival horizon projection by replacing regulatory flat run-off rates with dynamic, time-varying outflow predictions that reflect the bank's actual depositor behaviour. This gives a more granular picture of the liquidity consumption path — not just a 30-day pass/fail.</p>
+
+  <h2>5. Intraday liquidity management</h2>
+  <p>Beyond the daily LCR, banks must manage <strong>intraday liquidity</strong> — the cash needed to settle payment obligations throughout the trading day. A bank that cannot settle a payment by the cut-off time faces systemic consequences (counterparty chains fail). ML applications here include:</p>
+  <ul>
+    <li><strong>Payment timing prediction:</strong> LSTM models on historical payment flows to predict when large outflows will hit, allowing pre-positioning of collateral</li>
+    <li><strong>Intraday credit line optimisation:</strong> ML to optimise the allocation of intraday credit facilities across correspondent relationships</li>
+    <li><strong>Anomaly detection:</strong> flag unusual intraday payment patterns (a signal of operational error or fraud draining liquidity unexpectedly)</li>
+  </ul>
+
+  <h2>6. SVB 2023 — the model failure case study</h2>
+  <p>Silicon Valley Bank's collapse in March 2023 illustrated multiple liquidity model failures simultaneously:</p>
+  <table>
+    <thead><tr><th>Failure</th><th>What the model missed</th></tr></thead>
+    <tbody>
+      <tr><td>Deposit concentration</td><td>SVB's deposits were overwhelmingly from a single customer segment (VC-backed tech startups). Concentration risk at this level was not reflected in the LCR run-off rates — the model assumed diversified retail-like stickiness.</td></tr>
+      <tr><td>Social media contagion</td><td>Twitter/X drove a bank run faster than any historical precedent. Depositors communicated and coordinated outflows in real time — no historical model had training data for this channel speed.</td></tr>
+      <tr><td>HQLA liquidity in stress</td><td>SVB's HQLA consisted largely of long-duration government bonds — theoretically liquid, but selling them at scale required crystalising large unrealised losses, worsening the solvency picture and accelerating the run.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout risk">
+    <div class="callout-label">Model risk in liquidity models</div>
+    Liquidity models are "defensive" — they are rarely validated against actual stress events (hopefully). Back-testing against historical episodes (COVID March 2020, SVB 2023, 2008 Lehman) is the primary validation tool. The critical risk is that behavioural assumptions (run-off rates, inflow stability) are calibrated on benign-period data and break down precisely when the model is most needed.
+  </div>
+
+  <hr>
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+    <div class="question">
+      <p>1. A bank has HQLA of £5bn and regulatory net cash outflows of £4bn over 30 days. What is the LCR, and does it pass?</p>
+      <div class="options">
+        <button class="option" data-correct="true">LCR = 125% — passes (≥ 100% required)</button>
+        <button class="option" data-correct="false">LCR = 80% — fails</button>
+        <button class="option" data-correct="false">LCR = 100% — exactly passes</button>
+        <button class="option" data-correct="false">LCR cannot be computed without the NSFR</button>
+      </div>
+      <div class="feedback good">Correct. LCR = HQLA / Net Cash Outflows = £5bn / £4bn = 125%. The minimum requirement is 100%. A buffer above 100% provides headroom — the bank can sustain the 30-day stress scenario with £1bn of HQLA remaining.</div>
+      <div class="feedback bad">LCR = HQLA / Net Cash Outflows = 5 / 4 = 1.25 = 125%. ≥ 100% = pass. The excess (25%) represents the buffer above the regulatory minimum — the bank could absorb outflows 25% larger than modelled before breaching the requirement.</div>
+    </div>
+    <div class="question">
+      <p>2. Why did SVB's HQLA composition (long-duration government bonds) worsen its liquidity crisis rather than help?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Government bonds are not classified as HQLA under Basel rules</button>
+        <button class="option" data-correct="true">Selling them at scale required crystallising large unrealised losses, worsening the solvency picture and accelerating depositor panic</button>
+        <button class="option" data-correct="false">The bonds had matured and were no longer liquid by March 2023</button>
+        <button class="option" data-correct="false">Regulators prohibited SVB from selling HQLA without prior approval</button>
+      </div>
+      <div class="feedback good">Correct. The bonds were technically liquid (Level 1 HQLA), but selling them in a rising rate environment meant realising the mark-to-market losses that had been sitting unrealised. Announcing a large bond sale at a loss signalled capital weakness, which accelerated the deposit run rather than calming it — a feedback loop the LCR framework does not model.</div>
+      <div class="feedback bad">SVB's bonds were genuine HQLA — legally and practically sellable. The problem was that selling them crystalised unrealised losses accumulated during the 2022 rate rises. The loss announcement triggered the bank run rather than reassuring depositors. This interaction between IRRBB (EVE losses from Lesson 14) and liquidity risk is exactly what SVB's risk models failed to capture: asset sales to meet liquidity needs could themselves trigger the solvency concerns driving the run.</div>
+    </div>
+    <div class="question">
+      <p>3. How does ML improve on Basel's prescribed run-off rates for deposit outflow modelling?</p>
+      <div class="options">
+        <button class="option" data-correct="false">ML calculates lower run-off rates, reducing capital requirements</button>
+        <button class="option" data-correct="false">ML replaces the need for LCR calculation entirely</button>
+        <button class="option" data-correct="true">ML produces bank-specific, segment-level outflow predictions based on actual depositor behaviour rather than regulatory flat rates</button>
+        <button class="option" data-correct="false">ML is only applicable to wholesale funding outflows, not retail deposits</button>
+      </div>
+      <div class="feedback good">Correct. Basel's run-off rates are conservative averages applied uniformly. ML trained on the bank's own depositor behaviour — balance trends, product mix, customer tenure, competitive rate differentials — produces differentiated outflow estimates by segment. This can reveal that certain deposit categories are riskier than the regulatory floor suggests (or safer, justifying a lower internal rate with regulatory approval).</div>
+      <div class="feedback bad">Regulatory run-off rates are one-size-fits-all conservative averages. ML trained on the bank's own deposit data produces account-level or segment-level outflow probabilities reflecting actual stickiness, concentration, and behavioural patterns. These are more granular and more accurate for internal liquidity management — and can be used to challenge the Basel floors with regulator approval if internal data supports it.</div>
+    </div>
+    <div class="question">
+      <p>4. What is the primary purpose of intraday liquidity management — and why is it operationally critical?</p>
+      <div class="options">
+        <button class="option" data-correct="false">To ensure the bank maintains 100% LCR at all times throughout the trading day</button>
+        <button class="option" data-correct="false">To predict which customers will withdraw deposits before close of business</button>
+        <button class="option" data-correct="true">To ensure the bank can settle all payment obligations by cut-off time — failure to settle has systemic ripple effects across counterparty chains</button>
+        <button class="option" data-correct="false">To maintain the NSFR ratio above 100% on an intraday basis</button>
+      </div>
+      <div class="feedback good">Correct. Payment systems operate on tight deadlines. A bank that cannot fund a payment by the cut-off time causes that counterparty to miss its own payments — cascading failures across the financial system. Intraday liquidity is operationally more urgent than the 30-day LCR: the consequences of failure are measured in hours, not months.</div>
+      <div class="feedback bad">Intraday liquidity is about settlement — meeting payment obligations on time during the trading day. LCR measures 30-day survival; intraday liquidity measures survival by 5pm today. A payment settlement failure triggers counterparty defaults, potential regulatory sanctions, and reputational damage — all within hours. ML predicts intraday payment timing to pre-position collateral and avoid cut-off breaches.</div>
+    </div>
+    <div class="quiz-score"></div>
+  </div>
+  <hr>
+  <h2>Primary source to read next</h2>
+  <p><strong>BCBS — "Basel III: The Liquidity Coverage Ratio and liquidity risk monitoring tools" (January 2013)</strong><br>
+  <a href="https://www.bis.org/publ/bcbs238.htm" target="_blank">bis.org/publ/bcbs238.htm</a></p>
+  <p>The primary source for LCR methodology, run-off rates, and HQLA classification. Section 2 (LCR) and Annex 1 (HQLA criteria) are most relevant. Pair with the FSB's SVB post-mortem report for the 2023 real-world case study.</p>
+  <h2>What comes next</h2>
+  <ul>
+    <li><a href="0014-irrbb.html">← Lesson 14: IRRBB</a></li>
+    <li><a href="0016-climate-risk-seg.html">Lesson 16: Climate Risk &amp; Scenario Generation →</a></li>
+  </ul>
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — LCR vs NSFR distinctions, SVB mechanics, or intraday liquidity management are worth exploring further.</p>
+    <p style="margin-top:.5rem;">Lesson 15 · <em>AI/ML in Banking &amp; Finance</em> · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

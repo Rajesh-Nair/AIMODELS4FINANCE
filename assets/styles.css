@@ -1,0 +1,274 @@
+/* Shared stylesheet for AI/ML in Finance lessons — Tufte-inspired */
+
+:root {
+  --ink: #1a1a1a;
+  --muted: #555;
+  --rule: #d4d4d4;
+  --accent: #1a4d8f;
+  --accent-light: #e8f0fb;
+  --warn: #8b1a1a;
+  --warn-light: #fdf0f0;
+  --success: #1a5c2a;
+  --success-light: #edf7f0;
+  --neutral: #f5f5f0;
+  --code-bg: #f0f0eb;
+  --max-width: 720px;
+  --font-serif: "Georgia", "Times New Roman", serif;
+  --font-sans: "system-ui", -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Consolas", "Menlo", "Monaco", monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  line-height: 1.7;
+  color: var(--ink);
+  background: #fafaf8;
+  padding: 2rem 1rem 6rem;
+}
+
+.page {
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+
+/* ── Header ── */
+.lesson-meta {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+}
+
+h1 {
+  font-family: var(--font-serif);
+  font-size: 2rem;
+  font-weight: bold;
+  line-height: 1.25;
+  margin-bottom: 0.3rem;
+  color: var(--ink);
+}
+
+.subtitle {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  color: var(--muted);
+  margin-bottom: 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+/* ── Typography ── */
+h2 {
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+  font-weight: bold;
+  margin: 2.5rem 0 0.75rem;
+  color: var(--ink);
+}
+
+h3 {
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 1.8rem 0 0.5rem;
+}
+
+p { margin-bottom: 1rem; }
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+strong { font-weight: bold; }
+em { font-style: italic; }
+
+ul, ol {
+  margin: 0.5rem 0 1rem 1.5rem;
+}
+li { margin-bottom: 0.3rem; }
+
+/* ── Code ── */
+code {
+  font-family: var(--font-mono);
+  font-size: 0.83em;
+  background: var(--code-bg);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+}
+
+pre {
+  background: var(--code-bg);
+  border-left: 3px solid var(--accent);
+  padding: 1rem 1.2rem;
+  border-radius: 0 4px 4px 0;
+  overflow-x: auto;
+  margin: 1rem 0;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+/* ── Callout boxes ── */
+.callout {
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+  margin: 1.5rem 0;
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+}
+
+.callout-label {
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.3rem;
+}
+
+.callout.info    { background: var(--accent-light); border-left: 3px solid var(--accent); }
+.callout.info .callout-label { color: var(--accent); }
+
+.callout.risk    { background: var(--warn-light); border-left: 3px solid var(--warn); }
+.callout.risk .callout-label { color: var(--warn); }
+
+.callout.insight { background: var(--neutral); border-left: 3px solid #888; }
+.callout.insight .callout-label { color: #555; }
+
+/* ── Table ── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.2rem 0;
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+}
+
+th {
+  text-align: left;
+  font-weight: 700;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 2px solid var(--ink);
+  color: var(--ink);
+}
+
+td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+
+tr:last-child td { border-bottom: none; }
+
+/* ── Divider ── */
+hr {
+  border: none;
+  border-top: 1px solid var(--rule);
+  margin: 2.5rem 0;
+}
+
+/* ── Quiz widget ── */
+.quiz {
+  background: var(--neutral);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+}
+
+.quiz-title {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 1rem;
+}
+
+.question {
+  margin-bottom: 1.5rem;
+}
+
+.question p {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.option {
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  cursor: pointer;
+  background: white;
+  transition: background 0.15s, border-color 0.15s;
+  text-align: left;
+}
+
+.option:hover { background: var(--accent-light); border-color: var(--accent); }
+
+.option.correct   { background: var(--success-light); border-color: var(--success); color: var(--success); }
+.option.incorrect { background: var(--warn-light);    border-color: var(--warn);    color: var(--warn); }
+.option.reveal    { background: var(--success-light); border-color: var(--success); color: var(--success); opacity: 0.6; }
+
+.feedback {
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  margin-top: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 3px;
+  display: none;
+}
+
+.feedback.show   { display: block; }
+.feedback.good   { background: var(--success-light); color: var(--success); }
+.feedback.bad    { background: var(--warn-light);    color: var(--warn); }
+
+.quiz-score {
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: white;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  display: none;
+}
+
+/* ── Footer ── */
+.lesson-footer {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.lesson-footer a { color: var(--muted); text-decoration: underline; }
+
+/* ── Print ── */
+@media print {
+  body { background: white; font-size: 16px; }
+  .quiz { break-inside: avoid; }
+  .option:hover { background: white; }
+}
+
+/* ── Quiz JS helper ── */

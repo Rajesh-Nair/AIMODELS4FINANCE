@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 24: Treasury &amp; Accounting Models</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<div class="page">
+  <div class="lesson-meta">Lesson 24 · Treasury &amp; Finance</div>
+  <h1>Treasury &amp; Accounting Models</h1>
+  <p class="subtitle">Fund Transfer Pricing, hedge accounting under IFRS9, and balance sheet optimisation — how ML supports the internal financial infrastructure of a bank.</p>
+
+  <h2>1. Fund Transfer Pricing (FTP)</h2>
+  <p><strong>Fund Transfer Pricing</strong> is the internal mechanism banks use to allocate the cost of funding and the benefit of deposits to individual business lines. Without FTP, a business line that lends for 30 years using overnight deposits appears profitable but is hiding a massive interest rate risk that Treasury must manage centrally.</p>
+  <pre>FTP transfer price = Cost/benefit assigned to a product for its liquidity and interest rate profile
+
+Example:
+  A 5-year fixed rate mortgage uses 5-year funding → transfer price = 5-year swap rate + liquidity premium
+  A current account (liability) provides cheap short-term funding → transfer credit = overnight rate + liquidity benefit
+
+Business line P&L = Customer margin − FTP = true economic profit
+  (after removing interest rate and liquidity risk to Treasury)</pre>
+
+  <h2>2. The FTP components</h2>
+  <p>A well-designed FTP system has three components:</p>
+  <ul>
+    <li><strong>Base rate transfer price:</strong> the risk-free interest rate for the tenor of the product (SONIA swap rate in the UK post-LIBOR transition). This is market data — no model needed, though the behavioural tenor of non-maturity deposits (NMDs) requires a model (Lesson 14, IRRBB).</li>
+    <li><strong>Liquidity premium transfer price:</strong> the marginal cost of term funding above the risk-free rate (bank's own CDS spread, senior bond issuance cost adjusted for tenor). This must be estimated — ML can improve precision using market spread data.</li>
+    <li><strong>Credit risk transfer price:</strong> the credit risk of the loan is typically transferred to Credit Risk function via a separate credit spread charge — not part of Treasury FTP.</li>
+  </ul>
+  <p>ML in FTP: the key ML problem is <strong>behavioural tenor estimation</strong> for non-maturity products. A current account has no contractual maturity but empirically stays for years. The behavioural tenor model (the NMD models from Lesson 14) determines the FTP rate applied. ML improves this: cluster accounts by behaviour, assign tenure-based FTP rates by segment. This creates fair incentives — product lines that attract "stickier" deposits receive a higher FTP benefit credit.</p>
+
+  <h2>3. LIBOR transition — the model impact</h2>
+  <p>The global transition from LIBOR to risk-free rates (SONIA in GBP, SOFR in USD, €STR in EUR) required re-calibrating nearly every model in Treasury that used LIBOR as an input:</p>
+  <ul>
+    <li>FTP base rate curves rebuilt on SONIA compounded-in-arrears and SONIA term rates</li>
+    <li>Hedge accounting documentation updated to reflect new benchmark rate</li>
+    <li>Existing LIBOR hedges replaced with SONIA hedges — basis risk between legacy LIBOR loans (transitioning to compounded SOFR) and new hedges</li>
+    <li>Fallback model validation: every affected model required model change documentation, validation, and regulatory notification</li>
+  </ul>
+
+  <h2>4. Hedge accounting under IFRS9</h2>
+  <p>Banks manage interest rate risk using derivatives (swaps, futures). Without hedge accounting, the derivative is marked-to-market through P&L while the hedged item (e.g., a fixed-rate loan portfolio) is held at amortised cost — creating accounting volatility that does not reflect the economic hedging relationship. <strong>IFRS9 hedge accounting</strong> aligns the accounting treatment of the hedged item and the hedging instrument.</p>
+  <p>Three types of IFRS9 hedge relationship:</p>
+  <table>
+    <thead><tr><th>Hedge type</th><th>Use case</th><th>Key modelling requirement</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Fair value hedge</strong></td><td>Hedging a fixed-rate liability (e.g., fixed rate bond) with a pay-fixed receive-float swap</td><td>Effectiveness testing — the hedge must be 80–125% effective. ML improves the statistical test for effectiveness, particularly for portfolios with varying maturity profiles.</td></tr>
+      <tr><td><strong>Cash flow hedge</strong></td><td>Hedging variable rate future cash flows (e.g., SONIA-linked future loan revenue) with a receive-float pay-fixed swap</td><td>Highly probable assessment — must demonstrate the hedged item is "highly probable." Forecasting model required. ML regression on deposit behaviour provides the "highly probable" evidence.</td></tr>
+      <tr><td><strong>Net investment hedge</strong></td><td>Hedging FX risk of a foreign subsidiary investment</td><td>Portfolio-level hedge designation; FX forecast models.</td></tr>
+    </tbody>
+  </table>
+  <p>A key model risk: if a hedge fails the effectiveness test, it is <strong>de-designated</strong> — the derivative mark-to-market goes to P&L immediately, creating earnings volatility. Model validators scrutinise the effectiveness testing methodology.</p>
+
+  <h2>5. Balance sheet optimisation</h2>
+  <p>Banks face multiple simultaneous constraints on their balance sheet: minimum capital ratios (CET1), minimum liquidity ratios (LCR, NSFR), leverage ratio limits, and asset concentration limits. <strong>Balance sheet optimisation</strong> maximises return (NIM, fee income) subject to all binding constraints simultaneously:</p>
+  <pre>Optimise: Σ_products Revenue(product, volume, price)
+Subject to:
+  CET1 ratio ≥ minimum (depends on RWA of each product)
+  LCR ≥ 100%
+  NSFR ≥ 100%
+  Leverage ratio ≥ 3%
+  Single name / sector concentration ≤ limit
+  Stressed net revenue (ICAAP) ≥ target</pre>
+  <p>Classical approach: linear programming (LP) with regulatory ratios as constraints. ML contribution: non-linear revenue functions (deposit margins are non-linear functions of rates), customer demand curves (volume response to rate changes) learned from data, and scenario generation for stress-constrained optimisation.</p>
+
+  <h2>6. Regulatory reporting models</h2>
+  <p>Treasury produces much of the regulatory data submitted to the PRA/ECB: capital ratios, LCR, NSFR, large exposures, COREP. ML applications in reporting:</p>
+  <ul>
+    <li><strong>Anomaly detection on regulatory reports:</strong> autoencoder or clustering on report outputs — flags errors before submission</li>
+    <li><strong>RWA calculation QA:</strong> ML checks that RWA outputs from the risk engine are consistent with expectations given the current portfolio composition</li>
+    <li><strong>Natural language processing on regulatory text:</strong> automated monitoring of regulatory publications for model-relevant changes (new EBA Q&A, updated technical standards)</li>
+  </ul>
+
+  <div class="callout risk">
+    <div class="callout-label">FTP and model incentive risk</div>
+    FTP rates create incentives for business lines. If FTP is poorly calibrated, businesses optimise for the wrong objective. For example: if the FTP liquidity premium underestimates the true cost of long-tenor funding, mortgage origination appears more profitable than it truly is, leading to over-concentration in long-dated assets. Model validation of FTP must check not just the statistical properties of the model but the business behaviours it incentivises — a governance requirement that goes beyond statistical back-testing.
+  </div>
+
+  <hr>
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+    <div class="question">
+      <p>1. A retail bank branch raises 5-year fixed-rate mortgage loans at 4.5% and funds them via demand deposits paying 1.5%. Without FTP, what P&L does the branch report, and what risk is hidden?</p>
+      <div class="options">
+        <button class="option" data-correct="false">3% margin is the correct profit — there is no hidden risk if the loans are matched by deposits</button>
+        <button class="option" data-correct="true">3% margin appears locally but hides the interest rate risk: deposits are short-term (could reprice up) while mortgages are locked at 4.5% for 5 years. FTP would charge the branch the 5-year funding cost, revealing the true margin.</button>
+        <button class="option" data-correct="false">The branch reports 0% — FTP requires all margin to be transferred to Treasury</button>
+        <button class="option" data-correct="false">The 3% margin is correct; interest rate risk is managed by the branch's own interest rate derivatives</button>
+      </div>
+      <div class="feedback good">Correct. The branch sees 4.5% − 1.5% = 3% margin and thinks it is profitable. But the deposits could leave or reprice within days; the mortgages are locked for 5 years. The 3% margin includes a hidden interest rate risk premium that belongs to Treasury. FTP assigns a transfer price of (say) 4.0% for 5-year funding — the branch is left with 4.5% − 4.0% = 0.5% customer margin, which is its true product profit. Treasury earns the 4.0% − 1.5% = 2.5% funding transformation margin (and bears the interest rate risk centrally).</div>
+      <div class="feedback bad">Without FTP, the branch sees 3% but owns no interest rate risk — Treasury manages that centrally. FTP is the mechanism that reveals whose P&L includes the interest rate risk premium. With a 5-year swap rate of (say) 4.0%, the correct FTP charge to the mortgage book is 4.0% + liquidity premium. The branch customer margin is 4.5% − 4.0% = 0.5%, and Treasury earns the transformation spread. Now each party's P&L reflects only the risks they actually manage.</div>
+    </div>
+    <div class="question">
+      <p>2. Under IFRS9, what happens to a fair value hedge if the hedge effectiveness ratio falls below 80%?</p>
+      <div class="options">
+        <button class="option" data-correct="false">The hedged item must be written down to market value immediately</button>
+        <button class="option" data-correct="true">The hedge is de-designated — the derivative MTM must be recognised in P&L rather than in OCI, creating earnings volatility that would have been avoided with an effective hedge</button>
+        <button class="option" data-correct="false">A regulatory notification must be filed, but there is no immediate P&L impact</button>
+        <button class="option" data-correct="false">The ineffective portion is reclassified as a speculative position and subject to additional capital requirements</button>
+      </div>
+      <div class="feedback good">Correct. IFRS9 requires that a hedging relationship is 80–125% effective to qualify for hedge accounting. Outside this range, the hedge fails and must be de-designated. De-designation causes the derivative fair value change to flow directly through P&L — not through Other Comprehensive Income (OCI) as it would in an effective hedge. This creates earnings volatility that accounting standards were designed to avoid. Banks invest heavily in hedge effectiveness models to prevent de-designation.</div>
+      <div class="feedback bad">The 80–125% effectiveness corridor is the boundary of allowable IFRS9 hedge accounting. Below 80% or above 125%, the hedging relationship is "not effective" and must be de-designated. De-designation means the derivative MTM changes go straight to P&L rather than offsetting the hedged item's fair value change — potentially creating large, non-economic P&L swings. This is why effectiveness testing methodology is such a carefully governed model: a model failure in testing triggers accounting volatility.</div>
+    </div>
+    <div class="question">
+      <p>3. In balance sheet optimisation, why is linear programming (LP) alone insufficient and what does ML add?</p>
+      <div class="options">
+        <button class="option" data-correct="false">LP requires regulatory approval; ML models can run without it</button>
+        <button class="option" data-correct="true">Revenue and demand functions are non-linear and learned from customer behaviour data — LP assumes linear objectives, missing the true relationship between price, volume, and revenue; ML provides the non-linear demand curves as inputs to the optimisation</button>
+        <button class="option" data-correct="false">LP cannot handle more than 10 constraints simultaneously, making it inadequate for full balance sheet optimisation</button>
+        <button class="option" data-correct="false">ML provides the regulatory constraint values; LP provides the optimisation engine</button>
+      </div>
+      <div class="feedback good">Correct. LP requires the objective function and constraints to be linear. Revenue from pricing is non-linear — a 0.1% rate increase on savings accounts does not attract proportional volume, due to competitive dynamics, rate sensitivity thresholds, and customer inertia. ML trains demand curves from historical pricing and volume data, capturing these non-linearities. The trained demand function is then provided as an input to the optimisation (potentially using non-linear programming solvers or sequential LP approximations). ML and optimisation are complementary, not alternatives.</div>
+      <div class="feedback bad">LP is an exact solver for linear objectives subject to linear constraints. Balance sheet optimisation constraints (capital ratios, LCR) are linear in volumes — good for LP. But the revenue objective is non-linear: at 3% mortgage rate the bank wins all business; at 5% it loses to competitors; the relationship is sigmoid-like. ML learns this demand curve from historical data. The combined approach: ML provides the non-linear revenue surface, LP or non-linear programming solves for the optimal volumes subject to the regulatory constraints.</div>
+    </div>
+    <div class="quiz-score"></div>
+  </div>
+  <hr>
+  <h2>Primary source to read next</h2>
+  <p><strong>IASB — IFRS 9 Financial Instruments: Hedge Accounting (Section 6)</strong><br>
+  <a href="https://www.ifrs.org/issued-standards/list-of-standards/ifrs-9-financial-instruments/" target="_blank">ifrs.org — IFRS 9</a></p>
+  <p>Section 6 of IFRS 9 covers the three hedge types, effectiveness requirements, and rebalancing. The Basis for Conclusions explains why the effectiveness corridor was changed from IAS39's rigid requirements. Pair with the IASB's Educational Material on hedge accounting for worked examples.</p>
+  <h2>What comes next</h2>
+  <ul>
+    <li><a href="0023-recovery-asset-models.html">← Lesson 23: Recovery Asset Models</a></li>
+    <li><a href="0025-hr-models.html">Lesson 25: HR Models →</a></li>
+  </ul>
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — FTP calibration, hedge accounting effectiveness testing, or balance sheet optimisation techniques are all worth discussing further.</p>
+    <p style="margin-top:.5rem;">Lesson 24 · <em>AI/ML in Banking &amp; Finance</em> · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

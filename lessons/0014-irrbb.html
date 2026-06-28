@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 14: IRRBB — Interest Rate Risk in the Banking Book</title>
+<link rel="stylesheet" href="../assets/styles.css">
+<style>
+  .measure-split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin: 1.2rem 0;
+  }
+  .measure-card {
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    padding: 0.9rem 1rem;
+    font-family: var(--font-sans);
+    font-size: 0.83rem;
+  }
+  .measure-card h4 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.4rem; font-weight: 700; }
+  .measure-card.eve { border-left: 3px solid var(--accent); }
+  .measure-card.eve h4 { color: var(--accent); }
+  .measure-card.nii { border-left: 3px solid #8b6914; }
+  .measure-card.nii h4 { color: #8b6914; }
+  .shock-table { font-family: var(--font-sans); font-size: 0.82rem; }
+  .deposit-wrap { background: var(--neutral); border: 1px solid var(--rule); border-radius:5px; padding:1rem; margin:1.2rem 0; text-align:center; }
+  .deposit-wrap canvas { display:block; margin:0 auto; }
+  .deposit-wrap p { font-family:var(--font-sans); font-size:0.78rem; color:var(--muted); margin:0.4rem 0 0; }
+  @media (max-width:560px) { .measure-split { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="lesson-meta">Lesson 14 · Banking Book Risk</div>
+  <h1>IRRBB: Interest Rate Risk in the Banking Book</h1>
+  <p class="subtitle">
+    Why retail deposits and mortgage prepayments make interest rate risk uniquely hard to model — and how ML captures what classical models miss.
+  </p>
+
+  <!-- 1 -->
+  <h2>1. Banking book vs trading book</h2>
+
+  <p>
+    Market risk (Lessons 5–6) covers the <strong>trading book</strong>: instruments held for
+    short-term profit, marked to market daily. <strong>IRRBB</strong> covers the
+    <strong>banking book</strong>: loans, deposits, mortgages, and investment securities held on
+    an accrual basis to maturity. The same interest rate move has very different effects:
+  </p>
+
+  <table>
+    <thead>
+      <tr><th></th><th>Trading Book</th><th>Banking Book</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Accounting</strong></td><td>Mark-to-market (fair value)</td><td>Accrual / amortised cost (mostly)</td></tr>
+      <tr><td><strong>Rate impact</strong></td><td>Immediate P&amp;L via MTM change</td><td>Gradual impact on net interest income over time; EVE change captures long-run value</td></tr>
+      <tr><td><strong>Regulatory framework</strong></td><td>FRTB (traded book capital)</td><td>BCBS 368 / IRRBB standard (Pillar 2 capital)</td></tr>
+      <tr><td><strong>Key risk</strong></td><td>Short-term mark-to-market loss</td><td>Net interest income compression; erosion of equity value</td></tr>
+    </tbody>
+  </table>
+
+  <!-- 2 -->
+  <h2>2. Two lenses: EVE and NII / BBES</h2>
+
+  <div class="measure-split">
+    <div class="measure-card eve">
+      <h4>EVE — Economic Value of Equity</h4>
+      <strong>What it measures:</strong> Present value of all future asset cash flows minus present value of all future liability cash flows. A rate shock changes EVE by changing the discount rates applied to these cash flows.<br><br>
+      <strong>Horizon:</strong> Full remaining life of the balance sheet<br>
+      <strong>Use case:</strong> Long-run solvency; used in Pillar 2 capital assessments<br><br>
+      <em>Rate rises → asset values fall more than liability values (for a typical bank with more long-term fixed-rate assets than liabilities) → EVE falls</em>
+    </div>
+    <div class="measure-card nii">
+      <h4>NII / BBES — Net Interest Income / Banking Book Earnings Sensitivity</h4>
+      <strong>What it measures:</strong> Projected net interest income over a 1–3 year horizon under a rate shock scenario, compared to the base case.<br><br>
+      <strong>Horizon:</strong> Short-to-medium term (1–3 years)<br>
+      <strong>Use case:</strong> Earnings impact; used in budgeting and stress testing<br><br>
+      <em>Rate rises → short-term asset repricing benefit (floating-rate loans, maturing fixed-rate assets repriced higher) but also higher deposit costs as customers demand better rates</em>
+    </div>
+  </div>
+
+  <p>
+    The two measures can conflict: a bank can be positioned to benefit from rising rates in NII
+    (short-term earnings) while being negatively exposed on EVE (long-run value). Risk management
+    requires balancing both simultaneously.
+  </p>
+
+  <!-- 3 -->
+  <h2>3. The six standard IRRBB rate shock scenarios</h2>
+
+  <p>
+    <a href="https://www.bis.org/bcbs/publ/d368.htm" target="_blank">BCBS 368</a> mandates that
+    banks compute EVE and NII sensitivity under six standard interest rate shock scenarios:
+  </p>
+
+  <table class="shock-table">
+    <thead>
+      <tr><th>Scenario</th><th>Description</th><th>Key risk captured</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Parallel up</strong></td><td>All tenors shift up by a prescribed amount (e.g., +200bp)</td><td>Repricing mismatch between assets and liabilities</td></tr>
+      <tr><td><strong>Parallel down</strong></td><td>All tenors shift down (e.g., −200bp, floored at zero)</td><td>Impact on floating-rate income; optionality in deposits and mortgages</td></tr>
+      <tr><td><strong>Steepener</strong></td><td>Short rates fall, long rates rise</td><td>Duration mismatch; long-term assets gain, short-term liabilities reprice down</td></tr>
+      <tr><td><strong>Flattener</strong></td><td>Short rates rise, long rates fall</td><td>Carry compression; short-term funding costs rise, long-term asset yields fall</td></tr>
+      <tr><td><strong>Short rate up</strong></td><td>Only short-term rates rise</td><td>Deposit repricing, overnight and short-term funding costs</td></tr>
+      <tr><td><strong>Short rate down</strong></td><td>Only short-term rates fall</td><td>Floor effects; deposit floor optionality, prepayment incentive on mortgages</td></tr>
+    </tbody>
+  </table>
+
+  <!-- 4 -->
+  <h2>4. The core modelling challenge: non-maturity deposits</h2>
+
+  <p>
+    The most difficult and commercially significant modelling problem in IRRBB is
+    <strong>Non-Maturity Deposits (NMDs)</strong> — current accounts, savings accounts, and
+    instant-access deposits that have no contractual maturity. The customer can withdraw at any time.
+  </p>
+
+  <p>
+    Yet in practice, most of this money is <em>behaviourally sticky</em> — customers leave deposits
+    in place even when rates move, because the hassle of switching outweighs the rate gain.
+    This stickiness has two dimensions that must be modelled separately:
+  </p>
+
+  <div class="deposit-wrap">
+    <canvas id="depositChart" width="540" height="210"></canvas>
+    <p>Deposit beta and volume sensitivity: how much of a rate change is passed to depositors (beta), and how much volume leaves when rates diverge from market rates (volume sensitivity).</p>
+  </div>
+
+  <h3>Deposit beta (pass-through)</h3>
+  <p>
+    <strong>Deposit beta</strong> = fraction of a market rate change that the bank passes on to depositors.
+    Beta = 0 means the bank pays the same deposit rate regardless of market rates.
+    Beta = 1 means the bank fully passes through every rate change.
+    In practice, retail deposit betas are 0.2–0.6 in rising rate environments (banks pass through
+    40–80% less than the rate change) and often near zero for the first 50–100bp of rate rises.
+  </p>
+
+  <h3>Volume sensitivity</h3>
+  <p>
+    When deposit rates lag market rates too much, customers switch to higher-paying alternatives.
+    This <strong>volume sensitivity</strong> must be modelled as a function of the rate gap between
+    the deposit rate and the market rate.
+  </p>
+
+  <h3>ML for deposit behaviour</h3>
+  <p>
+    Classical NMD models used linear regression to estimate beta from historical data. ML improves
+    in three ways:
+  </p>
+  <ul>
+    <li><strong>Non-linearity:</strong> deposit beta is not constant — it behaves differently near zero rates (floor effects), at different levels of rate change magnitude, and in rising vs falling environments. XGBoost captures regime-conditional beta naturally.</li>
+    <li><strong>Customer segmentation:</strong> betas differ dramatically across customer segments (retail vs SME, current account vs savings, high-balance vs low-balance). ML models trained at the account level and aggregated produce more accurate portfolio betas.</li>
+    <li><strong>Lead/lag dynamics:</strong> deposit repricing lags market rate changes by weeks or months. LSTM models capturing the temporal structure of repricing cycles outperform static regression on multi-rate-cycle datasets.</li>
+  </ul>
+
+  <!-- 5 -->
+  <h2>5. Mortgage prepayment models</h2>
+
+  <p>
+    Fixed-rate mortgages carry <strong>prepayment optionality</strong>: when market rates fall,
+    borrowers can refinance to a lower rate — effectively redeeming the mortgage early. This is
+    an option the borrower holds and the bank has written. It creates an extension/contraction
+    risk for the bank's balance sheet.
+  </p>
+
+  <ul>
+    <li>Rates fall → prepayments accelerate → bank must reinvest proceeds at lower rates</li>
+    <li>Rates rise → prepayments slow → bank is locked into below-market fixed-rate assets for longer</li>
+  </ul>
+
+  <p>
+    ML prepayment models outperform the classical logistic-regression and PSA (Public Securities
+    Association) convention approaches by capturing:
+  </p>
+  <ul>
+    <li><strong>Rate incentive non-linearity:</strong> the rate incentive to refinance follows an S-curve (very low incentive has little effect; beyond a threshold, incentive drives rapid prepayments)</li>
+    <li><strong>Burnout effect:</strong> mortgages that have survived multiple refinancing opportunities despite incentive are less likely to prepay — the "easy refinancers" have already gone</li>
+    <li><strong>Borrower heterogeneity:</strong> age, loan-to-value, employment type, and credit score all affect prepayment propensity independently of rate incentive</li>
+  </ul>
+
+  <!-- 6 -->
+  <h2>6. Governance: BCBS 368 and the Pillar 2 framework</h2>
+
+  <p>
+    IRRBB is regulated under <strong>Pillar 2</strong> (supervisory review), not Pillar 1 (minimum capital).
+    Banks must hold capital against IRRBB risk under their ICAAP (Internal Capital Adequacy Assessment
+    Process), but the amount is based on internal models rather than a standardised formula.
+  </p>
+
+  <p>
+    BCBS 368 (2016) and the EBA IRRBB Guidelines (2022) specify:
+  </p>
+  <ul>
+    <li>The six standard shock scenarios must be computed and disclosed in Pillar 3 reports</li>
+    <li>A supervisory outlier test: if EVE decline under any standard shock exceeds 15% of Tier 1 capital, the regulator is alerted and may require capital or de-risking</li>
+    <li>NMD models must be documented with assumptions on repricing maturity (the assumed maturity of behaviourally sticky deposits) and volume sensitivity</li>
+    <li>Model assumptions must be reviewed at least annually and challenged by the ALCO (Asset and Liability Committee) and model validation</li>
+  </ul>
+
+  <div class="callout risk">
+    <div class="callout-label">The 2022–2023 rate cycle as a stress test</div>
+    The rapid rate rises of 2022–2023 provided the first real-world stress test of IRRBB models
+    built during the low-rate era. Several US regional banks (notably SVB) had extreme EVE
+    sensitivity to rate rises — their long-duration bond portfolios lost substantial value as
+    rates rose, while their deposit models assumed much higher stickiness than materialised.
+    This episode drove regulatory attention back to IRRBB model quality, particularly NMD
+    assumptions and the interaction between EVE sensitivity and deposit flight under stress.
+  </div>
+
+  <hr>
+
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+
+    <div class="question">
+      <p>1. A bank has predominantly long-term fixed-rate mortgages funded by short-term deposits. Interest rates rise sharply. What happens to EVE?</p>
+      <div class="options">
+        <button class="option" data-correct="false">EVE rises — higher rates increase the bank's net interest income</button>
+        <button class="option" data-correct="true">EVE falls — the present value of long-term fixed-rate mortgage cash flows falls more than the present value of short-term liabilities</button>
+        <button class="option" data-correct="false">EVE is unaffected — banking book assets are not marked to market</button>
+        <button class="option" data-correct="false">EVE rises because short-term deposits reprice faster, reducing liability values</button>
+      </div>
+      <div class="feedback good">Correct. EVE = PV(assets) − PV(liabilities). Long-term fixed-rate mortgages have high duration — their PV falls significantly when discount rates rise. Short-term deposits have low duration — their PV barely changes. The asset PV falls more than the liability PV → EVE falls. This is the classic asset-liability mismatch. SVB's collapse in 2023 was a real-world example of this dynamic at extreme scale.</div>
+      <div class="feedback bad">EVE measures the present value of assets minus liabilities. Long-term fixed-rate mortgages have high duration — a 200bp rate rise reduces their PV substantially. Short-term deposits have near-zero duration — their PV barely moves. Net result: asset PV falls much more than liability PV → EVE declines sharply. This is the textbook IRRBB asset-liability mismatch, and the reason SVB failed in 2023.</div>
+    </div>
+
+    <div class="question">
+      <p>2. Deposit beta = 0.35 in a rising rate environment. Rates rise by 200bp. How much do deposit rates increase?</p>
+      <div class="options">
+        <button class="option" data-correct="false">200bp — full pass-through to depositors</button>
+        <button class="option" data-correct="false">65bp — the bank retains the full rise minus the beta</button>
+        <button class="option" data-correct="true">70bp — the bank passes on 35% of the 200bp rise</button>
+        <button class="option" data-correct="false">135bp — the bank retains 35% and passes on 65%</button>
+      </div>
+      <div class="feedback good">Correct. Deposit beta = fraction of rate change passed to depositors. Beta 0.35 × 200bp = 70bp passed on to customers. The bank retains the remaining 130bp as an interest margin boost — which is why rising rates are initially positive for NII (earnings) even while EVE falls. The tension between EVE and NII sensitivity is the central challenge ALCO must manage.</div>
+      <div class="feedback bad">Beta = pass-through rate. 0.35 × 200bp = 70bp passed to depositors. The bank retains 200 − 70 = 130bp of the rate rise as margin, which improves NII. But this beta is not constant — competitors may attract deposit outflows if the gap between market rates and deposit rates becomes too wide, eventually forcing higher pass-through. Volume sensitivity captures this second-round effect.</div>
+    </div>
+
+    <div class="question">
+      <p>3. The BCBS 368 supervisory outlier test flags a bank when EVE decline under a standard shock exceeds what threshold?</p>
+      <div class="options">
+        <button class="option" data-correct="false">5% of total assets</button>
+        <button class="option" data-correct="false">10% of total regulatory capital (Total Capital Ratio denominator)</button>
+        <button class="option" data-correct="true">15% of Tier 1 capital</button>
+        <button class="option" data-correct="false">20% of risk-weighted assets</button>
+      </div>
+      <div class="feedback good">Correct. The BCBS 368 outlier threshold is 15% of Tier 1 capital. Breaching this in any of the six standard scenarios triggers regulatory attention — the supervisor may require additional Pillar 2 capital, balance sheet de-risking, or a remediation plan. It is not an automatic capital add-on but a supervisory escalation trigger.</div>
+      <div class="feedback bad">BCBS 368 outlier test: if EVE decline > 15% of Tier 1 capital under any standard shock, the bank is flagged for supervisory review. The regulator may then require capital add-ons or impose de-risking requirements. The threshold is expressed as a fraction of Tier 1 (not RWA or total assets) to reflect that IRRBB risk is primarily an equity risk.</div>
+    </div>
+
+    <div class="question">
+      <p>4. What is the "burnout effect" in mortgage prepayment modelling — and why does ML capture it better than classical models?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Mortgages "burn out" as the outstanding balance reduces, leaving less interest income</button>
+        <button class="option" data-correct="true">Mortgages that have survived multiple refinancing opportunities are less likely to prepay — the rate-sensitive borrowers have already left, leaving a "seasoned" less-responsive pool</button>
+        <button class="option" data-correct="false">High interest rate environments cause mortgage pools to exhaust their prepayment capacity</button>
+        <button class="option" data-correct="false">Burnout refers to the administrative burden on bank staff processing early repayments</button>
+      </div>
+      <div class="feedback good">Correct. Burnout is a selection effect: when rates fell in prior periods and some borrowers refinanced, those remaining are disproportionately the ones who did not refinance despite having incentive — because of hassle, poor credit, or inertia. This pool is less sensitive to future refinancing incentives. Linear regression on current rate incentive cannot capture this history-dependent dynamic; ML models with lagged features (how many refinancing opportunities were missed) model it naturally.</div>
+      <div class="feedback bad">Burnout is a path-dependent effect. A mortgage pool that passed through previous low-rate refinancing windows with some proportion refinancing leaves the remaining pool dominated by borrowers who were less rate-sensitive (due to credit constraints, inertia, or preference). This seasoned pool responds less to future rate incentives. Linear prepayment models using only the current rate incentive miss this — ML models with vintage and rate-history features capture it.</div>
+    </div>
+
+    <div class="quiz-score"></div>
+  </div>
+
+  <hr>
+
+  <h2>Primary source to read next</h2>
+  <p>
+    <strong>BCBS — "Interest rate risk in the banking book" (BCBS 368, April 2016)</strong><br>
+    <a href="https://www.bis.org/bcbs/publ/d368.htm" target="_blank">bis.org/bcbs/publ/d368.htm</a>
+  </p>
+  <p>
+    The primary regulatory standard. Focus on: Section III (NMD modelling standards),
+    Annex I (the six standard shock scenarios and outlier test), and Annex II (supervisory
+    expectations for internal models). Compact (75 pages) and precise.
+  </p>
+
+  <h2>What comes next</h2>
+  <ul>
+    <li><a href="0013-ccr-cva-pfe.html">← Lesson 13: CCR, CVA &amp; PFE</a></li>
+    <li>Lesson 15: Liquidity Risk Models (coming next)</li>
+  </ul>
+
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — the EVE vs NII tension, NMD repricing assumptions, or mortgage prepayment burnout are all worth discussing further.</p>
+    <p style="margin-top:0.5rem;">Lesson 14 of the <em>AI/ML in Banking &amp; Finance</em> course · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+
+</div>
+<script>
+(function () {
+  var canvas = document.getElementById('depositChart');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+  var pad = { left: 55, right: 120, top: 20, bottom: 45 };
+  var cW = W - pad.left - pad.right, cH = H - pad.top - pad.bottom;
+
+  ctx.fillStyle = '#f5f5f0'; ctx.fillRect(0, 0, W, H);
+
+  var steps = 100;
+  var marketRates = [], depositRates = [], volumes = [];
+  for (var i = 0; i <= steps; i++) {
+    var t = i / steps;
+    var mr = t * 4; /* Market rate 0% to 4% */
+    var dr = Math.min(mr * 0.35, mr * 0.35 + 0.1); /* Beta ~0.35 with lag */
+    var vol = 1.0 - 0.25 * Math.max(0, mr - dr - 0.5); /* Volume erodes when gap > 0.5% */
+    marketRates.push(mr);
+    depositRates.push(dr);
+    volumes.push(Math.max(0.6, vol));
+  }
+
+  var maxR = 4;
+  var rToX = function (i) { return pad.left + (i / steps) * cW; };
+  var rToY = function (r) { return pad.top + cH - (r / maxR) * cH; };
+  var vToY = function (v) { return pad.top + cH - (v / 1.0) * cH; };
+
+  /* Market rate */
+  ctx.beginPath();
+  marketRates.forEach(function (r, i) { if (i===0) ctx.moveTo(rToX(i), rToY(r)); else ctx.lineTo(rToX(i), rToY(r)); });
+  ctx.strokeStyle = '#1a4d8f'; ctx.lineWidth = 2; ctx.stroke();
+
+  /* Deposit rate */
+  ctx.beginPath();
+  depositRates.forEach(function (r, i) { if (i===0) ctx.moveTo(rToX(i), rToY(r)); else ctx.lineTo(rToX(i), rToY(r)); });
+  ctx.strokeStyle = '#8b6914'; ctx.lineWidth = 2; ctx.setLineDash([5,3]); ctx.stroke();
+  ctx.setLineDash([]);
+
+  /* Axes */
+  ctx.strokeStyle = '#888'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad.left, pad.top); ctx.lineTo(pad.left, pad.top + cH); ctx.lineTo(pad.left + cW, pad.top + cH); ctx.stroke();
+
+  /* X labels */
+  ctx.fillStyle = '#555'; ctx.font = '10px system-ui,sans-serif'; ctx.textAlign = 'center';
+  ['0%', '1%', '2%', '3%', '4%'].forEach(function(l, i) {
+    ctx.fillText(l, rToX(i * 25), pad.top + cH + 16);
+  });
+  ctx.fillText('Market rate', pad.left + cW/2, pad.top + cH + 32);
+
+  /* Y labels */
+  ctx.textAlign = 'right';
+  ['0%', '1%', '2%', '3%', '4%'].forEach(function(l, i) {
+    ctx.fillText(l, pad.left - 6, rToY(i) + 4);
+  });
+  ctx.save(); ctx.translate(13, pad.top + cH/2); ctx.rotate(-Math.PI/2);
+  ctx.textAlign = 'center'; ctx.fillText('Rate', 0, 0); ctx.restore();
+
+  /* Legend */
+  var lx = pad.left + cW + 10;
+  ctx.fillStyle = '#1a4d8f'; ctx.font = 'bold 10px system-ui,sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('Market rate', lx, pad.top + 20);
+  ctx.strokeStyle = '#8b6914'; ctx.lineWidth = 2; ctx.setLineDash([5,3]);
+  ctx.beginPath(); ctx.moveTo(lx, pad.top + 36); ctx.lineTo(lx + 20, pad.top + 36); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#8b6914'; ctx.fillText('Deposit rate', lx + 22, pad.top + 40);
+  ctx.fillStyle = '#555'; ctx.font = '9px system-ui,sans-serif';
+  ctx.fillText('(beta ≈ 0.35)', lx, pad.top + 52);
+
+  /* Gap annotation */
+  var mid = 60;
+  ctx.fillStyle = '#8b1a1a'; ctx.font = '9px system-ui,sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('Gap = margin', rToX(mid) + 10, (rToY(marketRates[mid]) + rToY(depositRates[mid]))/2);
+})();
+</script>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

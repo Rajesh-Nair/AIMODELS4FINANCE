@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 9: Fraud Detection — Recall Above All</title>
+<link rel="stylesheet" href="../assets/styles.css">
+<style>
+  .cost-matrix {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    overflow: hidden;
+    margin: 1.2rem 0;
+    font-family: var(--font-sans);
+    font-size: 0.84rem;
+    text-align: center;
+  }
+  .cm-cell {
+    padding: 0.65rem 0.5rem;
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+  }
+  .cm-cell:nth-child(3n) { border-right: none; }
+  .cm-cell.header { background: var(--neutral); font-weight: 700; font-size: 0.76rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .cm-cell.tp { background: var(--success-light); }
+  .cm-cell.tn { background: var(--success-light); }
+  .cm-cell.fp { background: #fffbea; }
+  .cm-cell.fn { background: var(--warn-light); }
+  .cm-cell .cost { font-weight: 700; font-size: 1rem; display: block; margin-top: 0.2rem; }
+  .cm-cell.fn .cost { color: var(--warn); }
+  .cm-cell.fp .cost { color: #8b6914; }
+  .cm-cell.tp .cost, .cm-cell.tn .cost { color: var(--success); }
+
+  .pr-container {
+    background: var(--neutral);
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    padding: 1rem;
+    margin: 1.2rem 0;
+    text-align: center;
+  }
+  .pr-container canvas { display: block; margin: 0 auto; }
+  .pr-container p { font-family: var(--font-sans); font-size: 0.78rem; color: var(--muted); margin: 0.4rem 0 0; }
+
+  .ae-diagram {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    margin: 1.2rem 0;
+    flex-wrap: wrap;
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    text-align: center;
+  }
+  .ae-box {
+    border-radius: 4px;
+    padding: 0.5rem 0.8rem;
+    border: 1px solid var(--rule);
+    line-height: 1.3;
+  }
+  .ae-box.input  { background: var(--accent-light); border-color: var(--accent); min-width: 90px; }
+  .ae-box.enc    { background: var(--neutral); min-width: 70px; }
+  .ae-box.latent { background: #f0e8f5; border-color: #8b5a9e; min-width: 60px; font-weight: 700; }
+  .ae-box.dec    { background: var(--neutral); min-width: 70px; }
+  .ae-box.output { background: var(--success-light); border-color: var(--success); min-width: 90px; }
+  .ae-box.recon  { background: var(--warn-light); border-color: var(--warn); min-width: 90px; }
+  .ae-arrow { color: #aaa; font-size: 1.1rem; }
+  .ae-label { font-size: 0.7rem; color: var(--muted); display: block; margin-top: 0.2rem; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="lesson-meta">Lesson 09 · Fraud &amp; AML</div>
+  <h1>Fraud Detection: Recall Above All</h1>
+  <p class="subtitle">
+    Why the standard ML metrics mislead in fraud — and how supervised models and autoencoders complement each other.
+  </p>
+
+  <!-- 1 -->
+  <h2>1. The defining constraint: asymmetric costs</h2>
+
+  <p>
+    Fraud detection is not a standard classification problem. The classes are massively imbalanced
+    (fraud rates in card transactions typically run 0.1–1%) and the <strong>cost of errors is
+    radically asymmetric</strong>:
+  </p>
+
+  <div class="cost-matrix">
+    <div class="cm-cell header"></div>
+    <div class="cm-cell header">Predicted: Fraud</div>
+    <div class="cm-cell header">Predicted: Legit</div>
+    <div class="cm-cell header">Actual: Fraud</div>
+    <div class="cm-cell tp">
+      <strong>True Positive</strong>
+      <span class="cost">Low cost</span>
+      Fraud caught; small friction to customer
+    </div>
+    <div class="cm-cell fn">
+      <strong>False Negative</strong>
+      <span class="cost">Very high cost</span>
+      Fraud missed: full transaction loss + regulatory penalty + reputational damage
+    </div>
+    <div class="cm-cell header">Actual: Legit</div>
+    <div class="cm-cell fp">
+      <strong>False Positive</strong>
+      <span class="cost">Moderate cost</span>
+      Legitimate customer blocked: friction, call-centre cost, churn risk
+    </div>
+    <div class="cm-cell tn">
+      <strong>True Negative</strong>
+      <span class="cost">Zero cost</span>
+      Correct approval; no action needed
+    </div>
+  </div>
+
+  <p>
+    The consequence: <strong>Recall</strong> (sensitivity = TP / (TP + FN)) is the primary metric.
+    Missing fraud is far more costly than blocking a legitimate transaction. But recall alone is
+    not enough — a model that flags every transaction as fraud achieves 100% recall and is useless.
+    The operating constraint is the <strong>False Positive Rate</strong>: compliance teams and
+    fraud operations have finite capacity to investigate alerts.
+  </p>
+
+  <div class="callout info">
+    <div class="callout-label">The precision-recall operating point</div>
+    Banks set a <strong>decision threshold</strong> that trades off recall against precision (and
+    thus alert volume). A threshold producing 90% recall and 5% precision means for every 20 alerts
+    investigated, 1 is real fraud — workable for high-value transactions. For low-value card
+    transactions, that ratio may be unsustainable. The threshold is a business decision as much as
+    a technical one.
+  </div>
+
+  <!-- 2 -->
+  <h2>2. Why accuracy and AUC-ROC mislead here</h2>
+
+  <p>
+    On a dataset that is 0.5% fraud, a model that predicts "legitimate" for every transaction
+    achieves <strong>99.5% accuracy</strong>. The number is meaningless.
+  </p>
+
+  <p>
+    AUC-ROC is better, but also misleading at extreme imbalance: it evaluates across all thresholds
+    including very high false-positive-rate regions that are operationally impossible. The
+    <strong>Precision-Recall (PR) curve</strong> is the correct visualisation — it focuses on the
+    region that matters: high recall with acceptable precision.
+  </p>
+
+  <div class="pr-container">
+    <canvas id="prChart" width="500" height="220"></canvas>
+    <p>Stylised PR curve. The operating point (threshold choice) moves along this curve — right means more recall, lower precision. Area under PR curve (AUPRC) is the preferred single-number metric for imbalanced fraud problems.</p>
+  </div>
+
+  <!-- 3 -->
+  <h2>3. Supervised learning: learning from labelled fraud</h2>
+
+  <p>
+    The primary approach at most banks: train a gradient boosted model (XGBoost, LightGBM) on a
+    labelled dataset of historical transactions, where each transaction is tagged as confirmed
+    fraud or confirmed legitimate.
+  </p>
+
+  <h3>Feature engineering for supervised fraud models</h3>
+
+  <table>
+    <thead>
+      <tr><th>Feature type</th><th>Examples</th><th>Signal</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Velocity features</strong></td>
+        <td>Count of transactions in last 1h / 6h / 24h; spend in last 1h</td>
+        <td>Fraud attacks often involve rapid-fire transactions before the card is blocked</td>
+      </tr>
+      <tr>
+        <td><strong>Geolocation</strong></td>
+        <td>Distance from home location; country mismatch; impossible travel (two transactions in different countries minutes apart)</td>
+        <td>Card-present fraud often occurs far from the cardholder's usual geography</td>
+      </tr>
+      <tr>
+        <td><strong>Device fingerprint</strong></td>
+        <td>IP address reputation; device age; browser fingerprint; new device for account</td>
+        <td>Fraudsters often use new or anonymised devices</td>
+      </tr>
+      <tr>
+        <td><strong>Merchant characteristics</strong></td>
+        <td>Merchant risk score; MCC code (high-risk categories); merchant fraud history</td>
+        <td>Some merchant categories and specific merchants have elevated fraud rates</td>
+      </tr>
+      <tr>
+        <td><strong>Behavioural baseline</strong></td>
+        <td>Deviation from customer's own spending pattern (amount, time, merchant type)</td>
+        <td>Fraud transactions often differ from the cardholder's typical behaviour</td>
+      </tr>
+      <tr>
+        <td><strong>Network features</strong></td>
+        <td>Whether the receiving account has been seen in previous fraud cases; account age</td>
+        <td>Fraud rings reuse recipient accounts; mule accounts are identifiable by pattern</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Handling class imbalance</h3>
+  <p>
+    With 0.5% fraud, naively trained models learn "always predict legitimate." Four standard techniques:
+  </p>
+  <ul>
+    <li><strong>Class weighting:</strong> assign a higher loss penalty to fraud misclassification. XGBoost's <code>scale_pos_weight</code> parameter implements this directly. Simplest and most robust approach.</li>
+    <li><strong>SMOTE</strong> (Synthetic Minority Oversampling): generate synthetic fraud examples by interpolating between real fraud cases in feature space. Increases fraud representation in training. Risk: synthetic examples may not reflect real fraud patterns.</li>
+    <li><strong>Undersampling:</strong> randomly remove majority (legitimate) examples to balance the dataset. Fast; may discard useful information.</li>
+    <li><strong>Threshold calibration:</strong> train on imbalanced data but lower the decision threshold — classify as fraud at score > 0.1 rather than > 0.5. Operationally equivalent to class weighting but applied post-training.</li>
+  </ul>
+
+  <!-- 4 -->
+  <h2>4. Autoencoders: detecting novel fraud</h2>
+
+  <p>
+    Supervised models have a structural limitation: they only detect fraud patterns they have
+    seen before. A novel fraud attack — a new technique, a compromised merchant network, a
+    synthetic identity scheme — will produce transactions that look unlike anything in the
+    training set. The supervised model assigns low fraud probability because it has no
+    template for this pattern.
+  </p>
+
+  <p>
+    <strong>Autoencoders</strong> solve this with a fundamentally different approach: learn what
+    <em>normal</em> looks like, then flag anything that doesn't fit.
+  </p>
+
+  <div class="ae-diagram">
+    <div class="ae-box input">Transaction features<br><span class="ae-label">Input x (high-dim)</span></div>
+    <div class="ae-arrow">→</div>
+    <div class="ae-box enc">Encoder<br><span class="ae-label">Compress</span></div>
+    <div class="ae-arrow">→</div>
+    <div class="ae-box latent">Latent z<br><span class="ae-label">Low-dim normal</span></div>
+    <div class="ae-arrow">→</div>
+    <div class="ae-box dec">Decoder<br><span class="ae-label">Reconstruct</span></div>
+    <div class="ae-arrow">→</div>
+    <div class="ae-box output">x̂ (reconstruction)<br><span class="ae-label">Reproduced features</span></div>
+  </div>
+  <div style="text-align:center;font-family:var(--font-sans);font-size:0.82rem;margin-top:0.3rem;">
+    <strong>Reconstruction error</strong> = ‖x − x̂‖ &nbsp;→&nbsp;
+    <span style="color:var(--success)">Low = normal transaction</span> &nbsp;|&nbsp;
+    <span style="color:var(--warn)">High = anomaly → fraud flag</span>
+  </div>
+
+  <p style="margin-top:1rem;">
+    Training: <em>only on legitimate transactions</em>. The encoder-decoder learns a compressed
+    representation of normal transaction patterns. When a fraudulent transaction — which has a
+    different statistical structure — is passed through the network, the decoder cannot reconstruct
+    it accurately. The reconstruction error is high, triggering an alert.
+  </p>
+
+  <div class="callout insight">
+    <div class="callout-label">Supervised + autoencoder: the hybrid</div>
+    Best-practice fraud systems combine both approaches. The supervised model catches known fraud
+    patterns with high precision. The autoencoder catches novel patterns the supervised model misses.
+    The outputs are combined — either by ensemble scoring or by routing to different investigation
+    queues (known fraud vs anomaly) — with different threshold policies for each.
+  </div>
+
+  <!-- 5 -->
+  <h2>5. Adversarial drift: the fastest model decay in finance</h2>
+
+  <p>
+    Fraud detection models decay faster than almost any other model in banking, because
+    <strong>fraudsters actively adapt</strong>. Unlike a credit customer whose behaviour changes
+    gradually with macroeconomic conditions, a fraud ring learns which transaction patterns trigger
+    the model and deliberately stays below the threshold. This is adversarial drift.
+  </p>
+
+  <p>
+    Consequences for model governance:
+  </p>
+  <ul>
+    <li><strong>Monthly or weekly monitoring</strong> of recall and alert-to-fraud conversion rate — much more frequent than credit models (quarterly)</li>
+    <li><strong>Champion-challenger architecture</strong> running continuously: the current model (champion) vs. a retrained version (challenger), with live traffic split between them</li>
+    <li><strong>Rapid retraining pipelines</strong>: fraud models are often retrained weekly or biweekly using recent confirmed fraud labels — more like a software deployment pipeline than a traditional model lifecycle</li>
+    <li><strong>Concept drift detection</strong>: statistical tests (PSI, KS test on score distribution) running in real-time to detect when the fraud population has shifted beyond what the model was trained on</li>
+  </ul>
+
+  <div class="callout risk">
+    <div class="callout-label">SR 11-7 in real-time</div>
+    The rapid retraining cycle for fraud models compresses the SR 11-7 model lifecycle dramatically.
+    A model "change" that would take months to validate in a credit risk context — new features,
+    updated hyperparameters — may need to be deployed in days in a fraud context. Banks must
+    develop expedited validation processes for fraud models that maintain governance rigour
+    without the full validation cycle. This is an active area of model risk innovation.
+  </div>
+
+  <hr>
+
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+
+    <div class="question">
+      <p>1. A fraud model achieves 99.6% accuracy on a dataset where 0.4% of transactions are fraudulent. Why is this number misleading?</p>
+      <div class="options">
+        <button class="option" data-correct="false">The fraud rate is too low for any ML model to be trained reliably</button>
+        <button class="option" data-correct="true">A model predicting "legitimate" for every transaction achieves 99.6% accuracy — so accuracy tells us nothing about fraud detection ability</button>
+        <button class="option" data-correct="false">Accuracy should only be measured on the fraud class, not the full dataset</button>
+        <button class="option" data-correct="false">99.6% accuracy implies the model has overfitted to the training data</button>
+      </div>
+      <div class="feedback good">Correct. When fraud is 0.4% of transactions, the trivial model — never predict fraud — achieves 99.6% accuracy. This model catches zero frauds. Accuracy is meaningless for imbalanced classification. Use Recall, Precision, and Area Under the PR Curve instead.</div>
+      <div class="feedback bad">The trivial classifier ("always predict legitimate") achieves 99.6% accuracy on this dataset by catching zero fraud. Accuracy is dominated by the majority class and tells you nothing about performance on the minority class that matters. Precision-Recall metrics and AUPRC are the correct measures for highly imbalanced fraud problems.</div>
+    </div>
+
+    <div class="question">
+      <p>2. An autoencoder for fraud detection is trained only on legitimate transactions. Why does this make it useful for novel fraud?</p>
+      <div class="options">
+        <button class="option" data-correct="false">It learns to classify fraud by memorising the legitimate class boundary</button>
+        <button class="option" data-correct="true">It learns to reconstruct normal transactions well; novel fraud has high reconstruction error because the model has never seen that pattern</button>
+button class="option" data-correct="false">It generates synthetic fraud examples that supplement the supervised model's training set</button>
+        <button class="option" data-correct="false">It removes class imbalance by training only on one class</button>
+      </div>
+      <div class="feedback good">Correct. The autoencoder learns the manifold of normal transactions. Anything that deviates from that manifold — including novel fraud types the model has never been trained to recognise — produces high reconstruction error. This is the key advantage over supervised models, which are blind to fraud patterns they haven't seen in labelled training data.</div>
+      <div class="feedback bad">The autoencoder does not learn what fraud looks like — it learns what normal looks like. When a novel fraud transaction (different statistical structure from normal) passes through the encoder-decoder, the decoder reconstructs it poorly: high ‖x − x̂‖. This flags it as an anomaly. Supervised models miss novel fraud because they have no training label for it; the autoencoder catches it because it deviates from normal, regardless of whether it's a known fraud type.</div>
+    </div>
+
+    <div class="question">
+      <p>3. A fraud model's recall drops from 88% to 71% over three months with no change to the model. What is the most likely explanation?</p>
+      <div class="options">
+        <button class="option" data-correct="false">The model's threshold has drifted upward due to score inflation</button>
+        <button class="option" data-correct="false">The bank's customer base has grown, increasing the fraud base rate</button>
+        <button class="option" data-correct="true">Adversarial drift — fraudsters have adapted their patterns to avoid the model's detection rules</button>
+        <button class="option" data-correct="false">The training data labels were incorrect and the model always had low recall</button>
+      </div>
+      <div class="feedback good">Correct. Adversarial drift is the dominant cause of rapid recall degradation in fraud models. Fraudsters probe the model's responses, identify which transaction characteristics trigger alerts, and modify their attack patterns to fall below the detection threshold. This is why fraud models require far more frequent retraining and monitoring than credit or market risk models.</div>
+      <div class="feedback bad">Recall decay over months with no model changes is the signature of adversarial drift. Fraud rings test and learn which patterns trigger the model, then adapt. The model's features no longer discriminate the new fraud pattern. The response is rapid retraining with recent labelled fraud, potentially combined with autoencoder anomaly scoring to catch the new pattern before sufficient labels are accumulated.</div>
+    </div>
+
+    <div class="question">
+      <p>4. XGBoost's <code>scale_pos_weight</code> parameter is set to 200 on a fraud dataset. What does this do, and why?</p>
+      <div class="options">
+        <button class="option" data-correct="false">It generates 200 synthetic fraud examples per real fraud example (SMOTE)</button>
+        <button class="option" data-correct="true">It multiplies the loss for each fraud misclassification by 200, making missed fraud 200× more costly in training than a false positive</button>
+        <button class="option" data-correct="false">It sets the decision threshold at 1/200 = 0.5% to match the fraud base rate</button>
+        <button class="option" data-correct="false">It limits the model to using at most 200 features to prevent overfitting</button>
+      </div>
+      <div class="feedback good">Correct. scale_pos_weight is a class weighting parameter. Setting it to 200 (≈ ratio of negatives to positives) makes each false negative in the fraud class 200× more costly in the gradient calculation. The model learns to prioritise recall over precision — matching the real-world cost asymmetry where missed fraud is far more costly than false alarms.</div>
+      <div class="feedback bad">scale_pos_weight multiplies the loss gradient for the positive (fraud) class. At 200, each missed fraud contributes 200× the gradient of a false positive. The model is therefore penalised heavily for missing fraud, driving it to increase recall at the expense of precision. This directly encodes the cost asymmetry into the training objective — the most principled way to handle it.</div>
+    </div>
+
+    <div class="quiz-score"></div>
+  </div>
+
+  <hr>
+
+  <h2>Primary source to read next</h2>
+  <p>
+    <strong>Dal Pozzolo et al. — "Calibrating Probability with Undersampling for Unbalanced Classification" (IEEE SSCI, 2015)</strong>
+  </p>
+  <p>
+    The foundational paper on threshold calibration and undersampling for fraud detection, using a
+    real credit card fraud dataset. Shows empirically why accuracy fails and how to correctly calibrate
+    model outputs for operational use. Widely cited in fraud ML literature.
+    Follow with the Kaggle Credit Card Fraud Detection dataset for hands-on practice.
+  </p>
+
+  <h2>What comes next</h2>
+  <p>
+    Lesson 10 covers <strong>Anti-Money Laundering with ML</strong> — why rule-based systems produce
+    90%+ false positive rates, how graph ML identifies suspicious transaction networks, and how NLP
+    analyses SARs and customer communications.
+  </p>
+  <ul>
+    <li><a href="0008-ccar-stress-testing.html">← Lesson 8: Stress Testing</a></li>
+    <li><a href="0010-aml.html">Lesson 10: Anti-Money Laundering →</a></li>
+  </ul>
+
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — the PR curve vs ROC curve distinction, SMOTE vs class weighting, or autoencoder architecture choices are all worth discussing further.</p>
+    <p style="margin-top:0.5rem;">Lesson 9 of the <em>AI/ML in Banking &amp; Finance</em> course · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+
+</div>
+<script>
+(function () {
+  var canvas = document.getElementById('prChart');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var W = canvas.width, H = canvas.height;
+  var pad = { left: 55, right: 20, top: 20, bottom: 45 };
+  var cW = W - pad.left - pad.right, cH = H - pad.top - pad.bottom;
+
+  ctx.fillStyle = '#f5f5f0';
+  ctx.fillRect(0, 0, W, H);
+
+  /* PR curve: precision drops as recall rises */
+  function pr(r) {
+    /* Realistic PR curve shape — high precision drops sharply at high recall */
+    return Math.min(0.98, 0.9 * Math.exp(-2.5 * Math.pow(r, 2.2)) + 0.05 + (1 - r) * 0.12);
+  }
+
+  var steps = 200;
+  var points = [];
+  for (var i = 0; i <= steps; i++) {
+    var r = i / steps;
+    points.push({ r: r, p: pr(r) });
+  }
+
+  var rToX = function (r) { return pad.left + r * cW; };
+  var pToY = function (p) { return pad.top + (1 - p) * cH; };
+
+  /* Grid lines */
+  ctx.strokeStyle = '#e0e0e0';
+  ctx.lineWidth = 0.5;
+  [0.2, 0.4, 0.6, 0.8].forEach(function (v) {
+    ctx.beginPath(); ctx.moveTo(rToX(v), pad.top); ctx.lineTo(rToX(v), pad.top + cH); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pad.left, pToY(v)); ctx.lineTo(pad.left + cW, pToY(v)); ctx.stroke();
+  });
+
+  /* Area fill */
+  ctx.beginPath();
+  points.forEach(function (p, i) {
+    if (i === 0) ctx.moveTo(rToX(p.r), pToY(p.p));
+    else ctx.lineTo(rToX(p.r), pToY(p.p));
+  });
+  ctx.lineTo(rToX(1), pToY(0));
+  ctx.lineTo(rToX(0), pToY(0));
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(26, 77, 143, 0.10)';
+  ctx.fill();
+
+  /* Curve */
+  ctx.beginPath();
+  points.forEach(function (p, i) {
+    if (i === 0) ctx.moveTo(rToX(p.r), pToY(p.p));
+    else ctx.lineTo(rToX(p.r), pToY(p.p));
+  });
+  ctx.strokeStyle = '#1a4d8f';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  /* Random baseline */
+  ctx.beginPath();
+  ctx.setLineDash([4, 4]);
+  ctx.strokeStyle = '#aaa';
+  ctx.lineWidth = 1;
+  ctx.moveTo(rToX(0), pToY(0.004));
+  ctx.lineTo(rToX(1), pToY(0.004));
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  /* Operating point */
+  var opR = 0.88, opP = pr(0.88);
+  ctx.beginPath();
+  ctx.arc(rToX(opR), pToY(opP), 6, 0, 2 * Math.PI);
+  ctx.fillStyle = var_warn = '#8b1a1a';
+  ctx.fillStyle = '#8b1a1a';
+  ctx.fill();
+  ctx.fillStyle = '#8b1a1a';
+  ctx.font = '10px system-ui, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('Operating point', rToX(opR) - 8, pToY(opP) - 8);
+  ctx.fillText('(88% recall, ' + Math.round(opP * 100) + '% precision)', rToX(opR) - 8, pToY(opP) + 4);
+
+  /* Axes */
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, pad.top);
+  ctx.lineTo(pad.left, pad.top + cH);
+  ctx.lineTo(pad.left + cW, pad.top + cH);
+  ctx.stroke();
+
+  /* Labels */
+  ctx.fillStyle = '#333';
+  ctx.font = '11px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  [0, 0.2, 0.4, 0.6, 0.8, 1.0].forEach(function (v) {
+    ctx.fillText(Math.round(v * 100) + '%', rToX(v), pad.top + cH + 16);
+  });
+  ctx.fillText('Recall', pad.left + cW / 2, pad.top + cH + 34);
+
+  ctx.textAlign = 'right';
+  [0, 0.2, 0.4, 0.6, 0.8, 1.0].forEach(function (v) {
+    ctx.fillText(Math.round(v * 100) + '%', pad.left - 6, pToY(v) + 4);
+  });
+  ctx.save();
+  ctx.translate(13, pad.top + cH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'center';
+  ctx.fillText('Precision', 0, 0);
+  ctx.restore();
+
+  /* Legend */
+  ctx.fillStyle = '#1a4d8f';
+  ctx.font = '10px system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('PR curve (ML model)', rToX(0.02), pToY(0.95));
+  ctx.fillStyle = '#aaa';
+  ctx.fillText('Random baseline (0.4% fraud rate)', rToX(0.02), pToY(0.95) + 14);
+})();
+</script>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

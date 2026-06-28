@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 3: EAD Forecasting — The Panic Draw</title>
+<link rel="stylesheet" href="../assets/styles.css">
+<style>
+  .formula-block {
+    background: var(--neutral);
+    border-left: 3px solid var(--accent);
+    padding: 1rem 1.2rem;
+    margin: 1.2rem 0;
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    line-height: 1.8;
+    border-radius: 0 4px 4px 0;
+  }
+  .timeline {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    margin: 1.5rem 0;
+    overflow-x: auto;
+  }
+  .tl-item {
+    flex: 1;
+    min-width: 120px;
+    text-align: center;
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    padding: 0 0.5rem;
+  }
+  .tl-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    margin: 0 auto 0.4rem;
+  }
+  .tl-dot.normal { background: var(--accent); }
+  .tl-dot.stress { background: var(--warn); }
+  .tl-line {
+    flex: none;
+    width: 40px;
+    height: 2px;
+    background: #ccc;
+    margin-top: 5px;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="lesson-meta">Lesson 03 · Credit Risk</div>
+  <h1>EAD Forecasting: The Panic Draw</h1>
+  <p class="subtitle">
+    Why borrowers draw down credit lines just before default — and how ML models this adverse behaviour.
+  </p>
+
+  <!-- 1 -->
+  <h2>1. Completing the trinity: what EAD is</h2>
+
+  <p>
+    EAD — <strong>Exposure at Default</strong> — is the third parameter in the Basel expected loss formula.
+    It answers: <em>how much does the bank actually owe us at the moment the borrower defaults?</em>
+  </p>
+
+  <div class="formula-block">EL  = PD  ×  LGD  ×  EAD
+
+EAD = amount the bank is exposed to at the point of default</div>
+
+  <p>
+    For a fixed-term loan (e.g., a term mortgage), EAD is straightforward: it is the outstanding
+    principal balance at default, which follows a known amortisation schedule. There is little to model.
+  </p>
+
+  <p>
+    The challenge arises with <strong>revolving facilities</strong>: credit cards, overdrafts, revolving
+    credit facilities (RCFs), and undrawn loan commitments. Here, the borrower controls how much they
+    draw. The outstanding balance can change daily — and, critically, borrowers behave very differently
+    when they are approaching distress.
+  </p>
+
+  <!-- 2 -->
+  <h2>2. The Credit Conversion Factor (CCF)</h2>
+
+  <p>
+    For revolving facilities, the EAD is decomposed into two components:
+  </p>
+
+  <div class="formula-block">EAD = Current Outstanding  +  CCF × Undrawn Commitment
+
+CCF (Credit Conversion Factor) = fraction of the undrawn limit
+                                  expected to be drawn by default</div>
+
+  <p>
+    Example: A borrower has a £10,000 credit card limit. Current balance is £4,000 (40% utilised).
+    Undrawn commitment = £6,000. If CCF = 0.5, the model predicts:
+  </p>
+
+  <div class="formula-block">EAD = £4,000  +  0.5 × £6,000  =  £7,000</div>
+
+  <p>
+    Under the Basel <strong>Foundation IRB</strong> approach, the regulator prescribes CCF values
+    (e.g., 75% for undrawn revolving commitments). Under <strong>Advanced IRB</strong>, banks estimate
+    their own CCF using historical data — and this is where ML enters.
+  </p>
+
+  <!-- 3 -->
+  <h2>3. The panic draw: adverse selection in revolving facilities</h2>
+
+  <p>
+    The core phenomenon that makes EAD modelling non-trivial is <strong>adverse selection in drawdown
+    behaviour</strong>. Distressed borrowers systematically draw on their credit lines before defaulting:
+  </p>
+
+  <div class="timeline">
+    <div class="tl-item">
+      <div class="tl-dot normal"></div>
+      <strong>12 months pre-default</strong><br>Utilisation: 45%<br>Normal behaviour
+    </div>
+    <div class="tl-line" style="margin-top:5px;"></div>
+    <div class="tl-item">
+      <div class="tl-dot normal"></div>
+      <strong>6 months pre-default</strong><br>Utilisation: 58%<br>Gradual increase
+    </div>
+    <div class="tl-line" style="margin-top:5px;"></div>
+    <div class="tl-item">
+      <div class="tl-dot stress"></div>
+      <strong>3 months pre-default</strong><br>Utilisation: 77%<br>Accelerating draw
+    </div>
+    <div class="tl-line" style="margin-top:5px;"></div>
+    <div class="tl-item">
+      <div class="tl-dot stress"></div>
+      <strong>1 month pre-default</strong><br>Utilisation: 91%<br>Near-maxed
+    </div>
+    <div class="tl-line" style="margin-top:5px;"></div>
+    <div class="tl-item">
+      <div class="tl-dot stress"></div>
+      <strong>Default</strong><br>EAD: £9,100<br>vs. £4,500 at T−12
+    </div>
+  </div>
+
+  <p>
+    This creates a <strong>PD–EAD correlation</strong> analogous to the PD–LGD correlation from Lesson 2:
+    the borrowers most likely to default are also those who draw most heavily before default.
+    A model that ignores this correlation will systematically underestimate EAD for the riskiest accounts.
+  </p>
+
+  <div class="callout risk">
+    <div class="callout-label">Capital implication</div>
+    If your EAD model is built on average CCF across the whole portfolio, it underestimates EAD for
+    high-PD segments. Since EL = PD × LGD × EAD, this compounds with PD and LGD errors in precisely
+    the accounts that drive the most risk. Basel's Advanced IRB requires banks to use CCF estimates
+    that reflect this drawdown behaviour — not just population-average CCFs.
+  </div>
+
+  <!-- 4 -->
+  <h2>4. How ML models EAD</h2>
+
+  <p>
+    EAD / CCF modelling with ML is less standardised than PD or LGD — fewer banks have full AIRB
+    approval for EAD. The primary approaches:
+  </p>
+
+  <h3>Approach 1: Regression on CCF</h3>
+  <p>
+    Treat CCF as a continuous target (bounded [0, 1] for the undrawn portion). Apply XGBoost or
+    Random Forest regression, with features that capture behavioural signals. The same bimodal problem
+    as LGD can appear (CCF = 0 for accounts that pay down before default; CCF near 1 for panic draws),
+    making two-stage approaches useful here too.
+  </p>
+
+  <h3>Approach 2: Utilisation trajectory modelling</h3>
+  <p>
+    Rather than predicting CCF at a single point, model the <em>path</em> of utilisation from the
+    reference date to default. This is naturally suited to <strong>recurrent neural networks (LSTM)</strong>
+    or gradient boosted models with time-lagged features. The sequence of monthly utilisation changes
+    carries strong signal about imminent default.
+  </p>
+
+  <h3>Approach 3: Cohort / segment models</h3>
+  <p>
+    For portfolios with limited data, segment accounts into behavioural cohorts (e.g., by current
+    utilisation band and product type) and estimate average CCF per cohort. This is more robust than
+    individual-level regression when training data is sparse but loses the precision of account-level prediction.
+  </p>
+
+  <!-- 5 -->
+  <h2>5. Key features for EAD / CCF models</h2>
+
+  <table>
+    <thead>
+      <tr><th>Feature</th><th>Signal</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Current utilisation rate</strong></td>
+        <td>Strongest single predictor. High current utilisation predicts high EAD — and high CCF on remaining undrawn.</td>
+      </tr>
+      <tr>
+        <td><strong>Utilisation trend (3m, 6m, 12m)</strong></td>
+        <td>Rapid increases in utilisation are an early warning of distress-driven drawdown.</td>
+      </tr>
+      <tr>
+        <td><strong>Payment behaviour</strong></td>
+        <td>Minimum payment only vs. full payment vs. overpayment. Minimum payers who then draw down are a high-EAD segment.</td>
+      </tr>
+      <tr>
+        <td><strong>Credit limit changes</strong></td>
+        <td>A recent limit increase followed by rapid drawdown is a high-risk pattern. Limit decreases by the bank may compress EAD.</td>
+      </tr>
+      <tr>
+        <td><strong>Product type</strong></td>
+        <td>Overdrafts typically have higher CCFs than credit cards; RCFs for corporates behave differently from consumer revolvers.</td>
+      </tr>
+      <tr>
+        <td><strong>Time horizon</strong></td>
+        <td>EAD depends on the look-ahead window. A 12-month horizon produces different CCFs than a 3-month horizon. Must match the PD horizon.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 6 -->
+  <h2>6. The reference date problem</h2>
+
+  <p>
+    EAD modelling has a <strong>reference date</strong> issue that PD and LGD models do not. CCF measures
+    how much additional drawing occurs between a reference date and the date of default. The choice of
+    reference date materially affects the estimated CCF:
+  </p>
+
+  <ul>
+    <li><strong>12-month reference:</strong> CCF measured from 12 months before default. Captures the full panic draw trajectory. Matches the standard 12-month PD horizon.</li>
+    <li><strong>Fixed point (e.g., last performing date):</strong> CCF measured from the last date the account was performing. Accounts for the exact pre-default window but varies in length across accounts.</li>
+  </ul>
+
+  <div class="callout info">
+    <div class="callout-label">Validation requirement</div>
+    Model validators must verify that the reference date choice is consistent between the CCF model
+    development sample and how the model is applied in production. A mismatch — e.g., CCF trained on
+    12-month reference but applied at the current date for accounts at various stages — produces
+    systematic bias in EAD estimates.
+  </div>
+
+  <!-- 7 -->
+  <h2>7. Model risk: the correlation regulators watch</h2>
+
+  <table>
+    <thead>
+      <tr><th>Risk</th><th>Description</th><th>Control</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>PD–EAD correlation</td>
+        <td>High-PD accounts draw more — EAD models must not be trained on full-portfolio averages</td>
+        <td>Estimate CCF conditional on default (use only defaulted accounts in training set)</td>
+      </tr>
+      <tr>
+        <td>Reference date inconsistency</td>
+        <td>Development CCF definition differs from application definition</td>
+        <td>Document reference date precisely; validate consistency in production pipeline</td>
+      </tr>
+      <tr>
+        <td>Downturn EAD</td>
+        <td>In stress, credit lines may be drawn more aggressively than in normal periods</td>
+        <td>Test CCF on stress-period data; apply add-on if stressed CCF materially exceeds average CCF</td>
+      </tr>
+      <tr>
+        <td>Limit management actions</td>
+        <td>Bank may reduce limits in response to early warning signals — compressing EAD independently of borrower behaviour</td>
+        <td>Either exclude limit-managed accounts from training or model as a separate segment</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <!-- Quiz -->
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+
+    <div class="question">
+      <p>1. A borrower has a £20,000 revolving credit limit, current outstanding £8,000, and the bank estimates CCF = 0.60. What is the EAD?</p>
+      <div class="options">
+        <button class="option" data-correct="false">£12,000</button>
+        <button class="option" data-correct="false">£8,000</button>
+        <button class="option" data-correct="true">£15,200</button>
+        <button class="option" data-correct="false">£20,000</button>
+      </div>
+      <div class="feedback good">Correct. Undrawn = £20,000 − £8,000 = £12,000. EAD = £8,000 + 0.60 × £12,000 = £8,000 + £7,200 = £15,200.</div>
+      <div class="feedback bad">EAD = Current Outstanding + CCF × Undrawn. Undrawn = £20,000 − £8,000 = £12,000. EAD = £8,000 + 0.60 × £12,000 = £15,200.</div>
+    </div>
+
+    <div class="question">
+      <p>2. Why is the "panic draw" phenomenon a problem for EAD models trained on population-average CCFs?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Average CCFs are too high for most borrowers</button>
+        <button class="option" data-correct="true">High-PD borrowers draw more than average — population CCFs underestimate EAD for the riskiest accounts</button>
+        <button class="option" data-correct="false">CCF cannot be measured on revolving facilities</button>
+        <button class="option" data-correct="false">Panic draws only affect mortgage products</button>
+      </div>
+      <div class="feedback good">Correct. This is PD–EAD correlation: the accounts most likely to default are the same accounts that draw most aggressively before default. Population-average CCFs wash out this adverse selection, systematically underestimating EAD for high-risk segments.</div>
+      <div class="feedback bad">PD and EAD are positively correlated — the most distressed borrowers (high PD) draw most heavily before defaulting. A population-average CCF averages over both low-risk (low-draw) and high-risk (high-draw) accounts, producing a CCF that is too low for precisely the accounts that matter most for capital.</div>
+    </div>
+
+    <div class="question">
+      <p>3. Under Basel Foundation IRB, how is CCF typically set?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Each bank estimates CCF from its own historical data</button>
+        <button class="option" data-correct="true">The regulator prescribes fixed CCF values (e.g., 75% for undrawn revolvers)</button>
+        <button class="option" data-correct="false">CCF is always 100% for all revolving products</button>
+        <button class="option" data-correct="false">CCF is derived from the bank's PD model output</button>
+      </div>
+      <div class="feedback good">Correct. Foundation IRB uses regulatory prescribed CCFs. Advanced IRB is the approach that allows (and requires) banks to estimate their own CCFs — which is where ML modelling becomes relevant.</div>
+      <div class="feedback bad">Foundation IRB uses regulator-prescribed CCFs. Advanced IRB permits banks to estimate their own — that is when ML modelling of CCF becomes relevant and valuable.</div>
+    </div>
+
+    <div class="question">
+      <p>4. A bank's EAD model is trained using CCFs measured from 12 months before default. In production, the model is applied at the current date for all accounts. What is the risk?</p>
+      <div class="options">
+        <button class="option" data-correct="false">The model will overfit to recent economic conditions</button>
+        <button class="option" data-correct="false">The model cannot handle accounts with zero current utilisation</button>
+        <button class="option" data-correct="true">Reference date mismatch — applying a 12-month CCF at arbitrary points in an account's life introduces systematic bias</button>
+        <button class="option" data-correct="false">The model requires recalibration using Platt scaling</button>
+      </div>
+      <div class="feedback good">Correct. The CCF definition in development (12 months before default) must match how it is applied. If the model is applied at the current date for accounts at varying stages, the implied look-ahead horizon differs from the training definition — a reference date inconsistency that validators always check.</div>
+      <div class="feedback bad">This is a reference date inconsistency. The training data defines CCF as the drawdown in the 12 months before default. But in production, the model is applied at the current date for accounts that may be 3 months, 6 months, or 24 months away from default. The horizon mismatch produces biased EAD estimates — a classic model risk finding for revolving facility models.</div>
+    </div>
+
+    <div class="quiz-score"></div>
+  </div>
+
+  <hr>
+
+  <h2>Primary source to read next</h2>
+  <p>
+    <strong>Baesens, Roesch &amp; Scheule — <em>Credit Risk Analytics</em>, Chapter 6: EAD Modelling</strong><br>
+    <a href="https://www.wiley.com/en-us/Credit+Risk+Analytics-p-9781119143987" target="_blank">wiley.com — Credit Risk Analytics</a>
+  </p>
+  <p>
+    Chapter 6 covers CCF estimation methodology, reference date choices, and the PD–EAD correlation
+    in depth. Worth reading alongside the BIS working paper on EAD estimation for revolving facilities.
+  </p>
+
+  <h2>What comes next</h2>
+  <p>
+    Lesson 4 covers <strong>Credit Scoring with Alternative Data</strong> — how ensemble methods process
+    hundreds of features from transaction history, bureau tradelines, and non-traditional sources, and
+    the fair lending / proxy variable risk that comes with it.
+  </p>
+  <ul>
+    <li><a href="0002-lgd-estimation.html">← Lesson 2: LGD Estimation</a></li>
+    <li><a href="0004-credit-scoring-alt-data.html">Lesson 4: Credit Scoring with Alternative Data →</a></li>
+  </ul>
+
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — type in the chat. The CCF formula, the panic draw mechanism, or the reference date issue are all worth interrogating further.</p>
+    <p style="margin-top:0.5rem;">Lesson 3 of the <em>AI/ML in Banking &amp; Finance</em> course · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

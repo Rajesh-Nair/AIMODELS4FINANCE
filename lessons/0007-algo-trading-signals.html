@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 7: Algo Trading &amp; ML Signal Generation</title>
+<link rel="stylesheet" href="../assets/styles.css">
+<style>
+  .pipeline-v {
+    margin: 1.5rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .pv-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  .pv-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    width: 32px;
+  }
+  .pv-num {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .pv-connector {
+    width: 2px;
+    flex: 1;
+    background: var(--rule);
+    min-height: 24px;
+    margin: 2px 0;
+  }
+  .pv-content {
+    padding-bottom: 1.2rem;
+    flex: 1;
+  }
+  .pv-content h4 {
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 0.2rem;
+  }
+  .pv-content p {
+    font-size: 0.88rem;
+    color: var(--muted);
+    margin: 0;
+    font-family: var(--font-sans);
+  }
+  .walk-forward {
+    background: var(--neutral);
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    padding: 1rem;
+    margin: 1.2rem 0;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    line-height: 2;
+    overflow-x: auto;
+  }
+  .wf-train { color: var(--accent); }
+  .wf-test  { color: var(--warn); }
+  .wf-gap   { color: #aaa; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="lesson-meta">Lesson 07 · Market Risk &amp; Trading</div>
+  <h1>Algo Trading: ML Signal Generation</h1>
+  <p class="subtitle">
+    How ML selects from hundreds of candidate signals — and the single validation technique that separates real alpha from backtest illusion.
+  </p>
+
+  <!-- 1 -->
+  <h2>1. The signal generation problem</h2>
+
+  <p>
+    An algorithmic trading strategy makes money by identifying <strong>alpha</strong>: systematic,
+    repeatable patterns in price or return data that can be exploited before the market corrects
+    them. The challenge is that financial markets are among the most competitive information
+    environments in the world — any easily discoverable pattern is quickly arbitraged away.
+  </p>
+
+  <p>
+    Classical quant strategies used a handful of carefully constructed signals — momentum,
+    mean-reversion, carry, value. ML's contribution is not replacing these signals but:
+  </p>
+
+  <ul>
+    <li>Searching a <strong>much larger feature space</strong> (hundreds of candidate indicators)</li>
+    <li>Finding <strong>non-linear and conditional relationships</strong> that classical linear factor models miss</li>
+    <li>Incorporating <strong>alternative data</strong> (satellite, NLP, web traffic) alongside price data</li>
+    <li>Adapting dynamically as market regimes shift</li>
+  </ul>
+
+  <div class="callout info">
+    <div class="callout-label">Alpha decay</div>
+    Every alpha signal decays as more capital targets it. ML strategies face the same decay, often
+    faster — once a pattern is learned by one major quant fund, it compresses rapidly.
+    The half-life of a newly discovered signal has shortened from years (1990s) to months or
+    weeks at major hedge funds. This makes robust validation and continuous signal refresh essential.
+  </div>
+
+  <!-- 2 -->
+  <h2>2. The ML trading signal pipeline</h2>
+
+  <div class="pipeline-v">
+    <div class="pv-step">
+      <div class="pv-left"><div class="pv-num">1</div><div class="pv-connector"></div></div>
+      <div class="pv-content">
+        <h4>Universe definition</h4>
+        <p>Select the asset universe (e.g., S&amp;P 500 stocks, G10 FX pairs, rates futures). Filter for liquidity — illiquid instruments produce backtest artefacts due to stale prices and impossible execution.</p>
+      </div>
+    </div>
+    <div class="pv-step">
+      <div class="pv-left"><div class="pv-num">2</div><div class="pv-connector"></div></div>
+      <div class="pv-content">
+        <h4>Feature engineering</h4>
+        <p>Construct candidate features: technical indicators (RSI, MACD, Bollinger bands), microstructure signals (bid-ask spread, order imbalance), macro factors (carry, economic surprises), and alternative data signals (sentiment scores, earnings call tone via NLP).</p>
+      </div>
+    </div>
+    <div class="pv-step">
+      <div class="pv-left"><div class="pv-num">3</div><div class="pv-connector"></div></div>
+      <div class="pv-content">
+        <h4>Target definition</h4>
+        <p>Define what the model predicts. Common targets: forward return over N days (regression), direction of N-day return (classification), or a risk-adjusted signal (Sharpe of a position). Target choice affects evaluation metrics and trading behaviour.</p>
+      </div>
+    </div>
+    <div class="pv-step">
+      <div class="pv-left"><div class="pv-num">4</div><div class="pv-connector"></div></div>
+      <div class="pv-content">
+        <h4>Walk-forward training &amp; validation</h4>
+        <p>The critical step — see Section 4. Train on a rolling window; test on the immediately following out-of-sample period. Repeat. This is the only method that genuinely prevents look-ahead bias.</p>
+      </div>
+    </div>
+    <div class="pv-step">
+      <div class="pv-left"><div class="pv-num">5</div><div class="pv-connector"></div></div>
+      <div class="pv-content">
+        <h4>Signal combination &amp; portfolio construction</h4>
+        <p>Combine model predictions with position sizing rules (Kelly criterion, risk parity, vol targeting). The signal is the model output; the position is what gets traded. A strong signal in an illiquid instrument may produce no trade if capacity constraints apply.</p>
+      </div>
+    </div>
+    <div class="pv-step">
+      <div class="pv-left"><div class="pv-num">6</div><div class="pv-connector"></div></div>
+      <div class="pv-content">
+        <h4>Execution &amp; transaction cost modelling</h4>
+        <p>ML signals degrade rapidly when transaction costs are modelled accurately. A strategy with Sharpe 1.5 before costs may fall to 0.4 after — or become unprofitable. Execution algorithms (TWAP, VWAP, RL-based) reduce market impact.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 -->
+  <h2>3. Feature categories: what ML looks for</h2>
+
+  <table>
+    <thead>
+      <tr><th>Category</th><th>Examples</th><th>Signal type</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Momentum</strong></td>
+        <td>12-1 month return, RSI, rate of change, MACD</td>
+        <td>Trend-following: assets that have risen tend to continue rising (medium-term)</td>
+      </tr>
+      <tr>
+        <td><strong>Mean reversion</strong></td>
+        <td>Z-score of price vs moving average, Bollinger band position, RSI extremes</td>
+        <td>Contrarian: extreme deviations from mean tend to revert (short-term)</td>
+      </tr>
+      <tr>
+        <td><strong>Carry</strong></td>
+        <td>FX forward premium, dividend yield vs funding rate, credit spread</td>
+        <td>Collect roll yield — cheaper to hold the position than not</td>
+      </tr>
+      <tr>
+        <td><strong>Microstructure</strong></td>
+        <td>Bid-ask spread trend, order book imbalance, trade size vs volume</td>
+        <td>Short-term; predicts returns over minutes to hours</td>
+      </tr>
+      <tr>
+        <td><strong>Fundamental / macro</strong></td>
+        <td>P/E relative to sector, GDP surprises, purchasing manager indices</td>
+        <td>Longer-horizon; lower turnover; used by fundamental quants</td>
+      </tr>
+      <tr>
+        <td><strong>Alternative data</strong></td>
+        <td>Earnings call sentiment (NLP), satellite store footfall, credit card spending, analyst revision momentum</td>
+        <td>Proprietary edge from non-price data; decays as data becomes commoditised</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    An XGBoost or Random Forest model can be handed all of these simultaneously and will identify
+    which features and feature interactions predict forward returns. The model's feature importance
+    (SHAP-based) tells the quant researcher <em>which signals are actually working</em> rather than
+    relying on pre-specified factor exposures.
+  </p>
+
+  <!-- 4 -->
+  <h2>4. Walk-forward validation: the anti-look-ahead discipline</h2>
+
+  <p>
+    <strong>Look-ahead bias</strong> is the cardinal sin of backtesting: using information not
+    available at the time a trade would have been made. In ML models with complex feature
+    pipelines, it can enter in subtle ways: normalisation using future data, feature construction
+    using the full sample, or hyperparameter tuning on the test set.
+  </p>
+
+  <p>
+    Walk-forward validation (also called <strong>expanding window</strong> or <strong>rolling window</strong>
+    cross-validation) is the correct response:
+  </p>
+
+  <div class="walk-forward">
+<span class="wf-train">████████████</span> <span class="wf-test">▓▓▓</span> <span class="wf-gap">░░░░░░░░░░░░░░░░░░░░░░</span>   Fold 1
+<span class="wf-train">████████████████</span> <span class="wf-test">▓▓▓</span> <span class="wf-gap">░░░░░░░░░░░░░░░░░░</span>   Fold 2
+<span class="wf-train">████████████████████</span> <span class="wf-test">▓▓▓</span> <span class="wf-gap">░░░░░░░░░░░░░░</span>   Fold 3
+<span class="wf-train">████████████████████████</span> <span class="wf-test">▓▓▓</span> <span class="wf-gap">░░░░░░░░░░</span>   Fold 4
+<span class="wf-train">████████████████████████████</span> <span class="wf-test">▓▓▓</span> <span class="wf-gap">░░░░░░</span>   Fold 5
+
+<span class="wf-train">█ train</span>   <span class="wf-test">▓ test (OOS)</span>   <span class="wf-gap">░ future (never seen)</span></div>
+
+  <p>
+    Rules for a valid walk-forward backtest:
+  </p>
+  <ul>
+    <li>Train only on data available before the test window — no future data leaks into any preprocessing step</li>
+    <li>Include a <strong>purge gap</strong> between train and test if the target has autocorrelation (e.g., 5-day return targets: purge 5 days between train end and test start)</li>
+    <li>Perform <strong>all</strong> hyperparameter tuning inside the training window — never on the test set</li>
+    <li>Concatenate the out-of-sample test predictions to form the realistic backtest — this is what you report to the PM or risk committee</li>
+  </ul>
+
+  <!-- 5 -->
+  <h2>5. Evaluation metrics for trading signals</h2>
+
+  <table>
+    <thead>
+      <tr><th>Metric</th><th>Definition</th><th>Threshold / context</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Information Coefficient (IC)</strong></td>
+        <td>Rank correlation (Spearman) between predicted and realised returns. Measures signal quality, not portfolio performance.</td>
+        <td>IC ≥ 0.05 is considered meaningful; IC ≥ 0.10 is strong for daily signals. Very few real signals exceed IC 0.15.</td>
+      </tr>
+      <tr>
+        <td><strong>IC Information Ratio (ICIR)</strong></td>
+        <td>Mean IC / StdDev(IC) — measures consistency of the signal across time. High IC with high variance is unreliable.</td>
+        <td>ICIR ≥ 0.5 is the typical threshold for deployment confidence.</td>
+      </tr>
+      <tr>
+        <td><strong>Sharpe Ratio</strong></td>
+        <td>Annualised return / annualised volatility of the strategy P&amp;L. Gold standard for risk-adjusted performance.</td>
+        <td>Pre-cost Sharpe ≥ 1.5 to be viable after costs in most strategies. Post-cost Sharpe ≥ 0.7 to be attractive to institutional capital.</td>
+      </tr>
+      <tr>
+        <td><strong>Maximum Drawdown</strong></td>
+        <td>Largest peak-to-trough loss in the backtest period.</td>
+        <td>Calibrated to investor risk tolerance; a strategy with Sharpe 1.0 but 40% max drawdown will face redemptions.</td>
+      </tr>
+      <tr>
+        <td><strong>Turnover</strong></td>
+        <td>Fraction of portfolio replaced daily/weekly.</td>
+        <td>High turnover × transaction cost = alpha destruction. Must model costs realistically.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 6 -->
+  <h2>6. Model risk on a trading desk</h2>
+
+  <p>
+    Algo trading models in a bank (as opposed to a hedge fund) face a distinct model risk governance
+    framework. SR 11-7 applies, but the operational risk profile is different from credit models:
+  </p>
+
+  <table>
+    <thead>
+      <tr><th>Risk</th><th>Description</th><th>Control</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>P&amp;L attribution</strong></td>
+        <td>Is the strategy's P&amp;L explained by the intended signals, or by unintended factor exposures (e.g., inadvertent beta to the market)?</td>
+        <td>Daily P&amp;L attribution report decomposing returns into model signal, factor exposures, and residual.</td>
+      </tr>
+      <tr>
+        <td><strong>Signal degradation</strong></td>
+        <td>Rolling IC trending toward zero — signal alpha is being arbitraged away.</td>
+        <td>Automated monitoring of rolling IC with alert thresholds; model review trigger when IC falls below ICIR threshold for 3+ months.</td>
+      </tr>
+      <tr>
+        <td><strong>Kill switch</strong></td>
+        <td>Runaway model produces enormous positions during a data feed error or market dislocation.</td>
+        <td>Hard position limits and loss limits enforced at the execution layer, independent of the signal model. Kill switch activates on drawdown > X% intraday.</td>
+      </tr>
+      <tr>
+        <td><strong>Model change approval</strong></td>
+        <td>Feature set or hyperparameter changes after live deployment constitute a model change.</td>
+        <td>Any live model change requires a formal change request, re-validation of the changed component, and risk management sign-off before deployment.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout risk">
+    <div class="callout-label">The algo trading model risk tier</div>
+    Algo trading models are typically High-tier under SR 11-7, because model errors translate
+    directly and rapidly into P&amp;L losses. Unlike a credit model where a 5% calibration error
+    causes a slow, diffuse capital miscalculation, a trading model error can generate hundreds of
+    millions in losses within hours. This is why kill switches and real-time P&amp;L attribution
+    are non-negotiable operational controls.
+  </div>
+
+  <hr>
+
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+
+    <div class="question">
+      <p>1. A trading signal has Information Coefficient (IC) = 0.08 and IC standard deviation = 0.20. What is the ICIR, and what does it tell you?</p>
+      <div class="options">
+        <button class="option" data-correct="false">ICIR = 1.6 — the signal is highly consistent and strong</button>
+        <button class="option" data-correct="true">ICIR = 0.40 — the signal has predictive content but inconsistency makes it risky to deploy alone</button>
+        <button class="option" data-correct="false">ICIR = 0.016 — the signal is too weak to be useful</button>
+        <button class="option" data-correct="false">ICIR cannot be calculated without the Sharpe ratio</button>
+      </div>
+      <div class="feedback good">Correct. ICIR = Mean IC / StdDev(IC) = 0.08 / 0.20 = 0.40. This is below the typical 0.5 deployment threshold — the signal has positive IC on average but varies widely across time. It might be combined with other signals in an ensemble rather than traded in isolation.</div>
+      <div class="feedback bad">ICIR = Mean IC / StdDev(IC) = 0.08 / 0.20 = 0.40. The ICIR measures IC consistency — a high IC with high variance is dangerous because the signal may be positive on average but frequently negative in practice. 0.40 is marginal; most managers want ICIR ≥ 0.5 before deployment.</div>
+    </div>
+
+    <div class="question">
+      <p>2. In walk-forward validation, why is a "purge gap" between training and test sets needed for a 5-day return target?</p>
+      <div class="options">
+        <button class="option" data-correct="false">To give the model time to converge before the test period</button>
+        <button class="option" data-correct="true">Because the 5-day return target at the train-end overlaps with the test period, causing data leakage</button>
+        <button class="option" data-correct="false">To prevent the model from memorising the last few training examples</button>
+        <button class="option" data-correct="false">Purge gaps are only needed for deep learning models, not tree-based models</button>
+      </div>
+      <div class="feedback good">Correct. If the last training observation uses a 5-day forward return target, days 1–5 after the training end date are part of the training target. Including them in the test period means the model was trained on information from the test window — a subtle but real form of look-ahead bias. The purge removes those contaminated days.</div>
+      <div class="feedback bad">The purge gap handles target autocorrelation. A training sample ending on day T with a 5-day return target means the last few training labels overlap with the beginning of the test window. Without a 5-day purge, the model was trained on returns that include test-period data — look-ahead bias. This applies to any model with a multi-period target or autocorrelated label.</div>
+    </div>
+
+    <div class="question">
+      <p>3. A quant strategy shows pre-cost Sharpe of 1.8 but falls to 0.3 after realistic transaction costs. What does this most likely indicate?</p>
+      <div class="options">
+        <button class="option" data-correct="false">The Sharpe ratio formula was applied incorrectly</button>
+        <button class="option" data-correct="false">The strategy has a data error in the return calculation</button>
+        <button class="option" data-correct="true">The strategy has very high turnover — alpha is being consumed by bid-ask spreads and market impact</button>
+        <button class="option" data-correct="false">The transaction cost model is incorrectly calibrated and should be ignored</button>
+      </div>
+      <div class="feedback good">Correct. A large Sharpe degradation from costs signals high turnover — the strategy trades so frequently that bid-ask spreads and market impact erode most of the alpha. Solutions: reduce signal frequency, apply a turnover penalty in the optimisation, or target more liquid instruments where market impact is lower.</div>
+      <div class="feedback bad">A large Sharpe drop (1.8 → 0.3) after costs is almost always a turnover problem. Short-horizon ML signals generate frequent trades — each one pays the bid-ask spread and moves the market against the position (market impact). Even small individual costs compound into a large aggregate drag. The solution is to reduce turnover or move to more liquid markets, not to ignore the cost model.</div>
+    </div>
+
+    <div class="question">
+      <p>4. What is the primary purpose of a kill switch on an algorithmic trading model?</p>
+      <div class="options">
+        <button class="option" data-correct="false">To retrain the model when the IC falls below threshold</button>
+        <button class="option" data-correct="false">To prevent the model from trading in illiquid markets</button>
+        <button class="option" data-correct="true">To halt trading automatically when positions or losses breach hard limits, independent of the signal model</button>
+        <button class="option" data-correct="false">To disable the model during regulatory inspection periods</button>
+      </div>
+      <div class="feedback good">Correct. The kill switch is an operational control that operates independently of the signal model itself. When intraday drawdown exceeds a threshold or positions breach hard limits, the kill switch automatically flattens or halts the book — regardless of what the signal model is recommending. It prevents a model error or data feed fault from becoming a catastrophic loss.</div>
+      <div class="feedback bad">A kill switch is a hard operational stop. It operates at the execution layer, independent of the signal model — it does not retrain or adjust the model. When intraday drawdown or position size breaches a pre-set limit, the switch automatically halts or flattens the book. This is essential because algo model errors can scale losses very rapidly — much faster than human intervention.</div>
+    </div>
+
+    <div class="quiz-score"></div>
+  </div>
+
+  <hr>
+
+  <h2>Primary source to read next</h2>
+  <p>
+    <strong>Marcos López de Prado — <em>Advances in Financial Machine Learning</em> (Wiley, 2018), Chapters 7–8: Cross-Validation in Finance</strong><br>
+    <a href="https://www.wiley.com/en-us/Advances+in+Financial+Machine+Learning-p-9781119482086" target="_blank">wiley.com — Advances in Financial Machine Learning</a>
+  </p>
+  <p>
+    The most rigorous treatment of walk-forward validation, purge gaps, and the combinatorial purged
+    cross-validation (CPCV) method in finance. Chapters 7–8 are directly applicable to the
+    validation discipline this lesson covers. The book is dense but essential for anyone doing
+    ML in trading seriously.
+  </p>
+
+  <h2>What comes next</h2>
+  <p>
+    Lesson 8 covers <strong>CCAR / Stress Testing with ML</strong> — how non-linear models generate
+    more granular stress scenarios, and what governance constraints apply when the regulator must
+    challenge and approve the stress model.
+  </p>
+  <ul>
+    <li><a href="0006-frtb-nmrf.html">← Lesson 6: FRTB &amp; NMRF</a></li>
+    <li><a href="0008-ccar-stress-testing.html">Lesson 8: CCAR &amp; Stress Testing →</a></li>
+  </ul>
+
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — the IC vs ICIR distinction, purge gaps, or kill switch design are all worth more discussion.</p>
+    <p style="margin-top:0.5rem;">Lesson 7 of the <em>AI/ML in Banking &amp; Finance</em> course · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

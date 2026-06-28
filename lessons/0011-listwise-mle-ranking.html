@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 11: Listwise MLE in Ranking Models</title>
+<link rel="stylesheet" href="../assets/styles.css">
+<style>
+  .paradigm-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0;
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    overflow: hidden;
+    margin: 1.2rem 0;
+  }
+  .paradigm-col {
+    padding: 0.9rem;
+    border-right: 1px solid var(--rule);
+    font-family: var(--font-sans);
+    font-size: 0.83rem;
+  }
+  .paradigm-col:last-child { border-right: none; }
+  .paradigm-col h4 {
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 0.4rem;
+  }
+  .paradigm-col.p1 h4 { color: #555; }
+  .paradigm-col.p2 h4 { color: var(--accent); }
+  .paradigm-col.p3 { background: var(--accent-light); }
+  .paradigm-col.p3 h4 { color: var(--accent); font-weight: 900; }
+  @media (max-width:560px) {
+    .paradigm-grid { grid-template-columns: 1fr; }
+    .paradigm-col { border-right: none; border-bottom: 1px solid var(--rule); }
+  }
+  .rank-example {
+    background: var(--neutral);
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    padding: 1rem 1.2rem;
+    margin: 1.2rem 0;
+    font-family: var(--font-sans);
+    font-size: 0.84rem;
+  }
+  .rank-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .rank-row:last-child { border-bottom: none; }
+  .rank-pos {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: white;
+    font-size: 0.78rem;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .rank-pos.bad { background: var(--warn); }
+  .rank-label { flex: 1; }
+  .rank-score { font-weight: 700; font-size: 0.85rem; color: var(--accent); }
+  .rank-score.bad { color: var(--warn); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="lesson-meta">Lesson 11 · Special Topic</div>
+  <h1>Listwise MLE in Ranking Models</h1>
+  <p class="subtitle">
+    The training objective that treats the entire ranked list as the unit of learning — and why it outperforms pointwise and pairwise approaches in financial applications.
+  </p>
+
+  <!-- 1 -->
+  <h2>1. The learning-to-rank problem in finance</h2>
+
+  <p>
+    Many financial decisions are not binary (approve/reject) or continuous (predict a value) —
+    they are <strong>ranking decisions</strong>: given a set of options, which order should they
+    be presented or acted upon?
+  </p>
+
+  <p>Finance applications where ranking is the natural formulation:</p>
+  <ul>
+    <li><strong>Product recommendation:</strong> rank credit card offers for a customer by predicted acceptance × profitability</li>
+    <li><strong>Collateral selection:</strong> rank eligible assets for margining from cheapest-to-deliver to most expensive</li>
+    <li><strong>Research prioritisation:</strong> rank analyst recommendations for a portfolio manager by relevance and expected alpha</li>
+    <li><strong>Credit decisioning triage:</strong> rank loan applications by likelihood of approval to optimise underwriter workflow</li>
+    <li><strong>Portfolio construction:</strong> rank stocks or assets by composite factor scores to determine inclusion and weights</li>
+  </ul>
+
+  <p>
+    You could treat these as pointwise prediction problems (predict a score, then sort). But this
+    ignores the <em>relational structure</em> of ranking — what matters is not the absolute score
+    of any item, but its position relative to the others. Listwise MLE is built around this insight.
+  </p>
+
+  <!-- 2 -->
+  <h2>2. Three learning-to-rank paradigms</h2>
+
+  <div class="paradigm-grid">
+    <div class="paradigm-col p1">
+      <h4>Pointwise</h4>
+      Score each item independently. Train on individual relevance labels (e.g., "this product has 0.12 probability of acceptance"). Sort by score to produce the ranking.<br><br>
+      <strong>Loss:</strong> MSE or cross-entropy per item<br>
+      <strong>Unit of training:</strong> individual item<br>
+      <strong>Limitation:</strong> ignores inter-item relationships; optimal per-item scores do not guarantee optimal ranking
+    </div>
+    <div class="paradigm-col p2">
+      <h4>Pairwise</h4>
+      Train on pairs: "item A should be ranked above item B." Loss penalises inversions (when the model ranks B above A when A should be higher).<br><br>
+      <strong>Loss:</strong> RankNet, LambdaRank<br>
+      <strong>Unit of training:</strong> item pair<br>
+      <strong>Limitation:</strong> does not account for the position in the full list — a swap at rank 1 vs 2 matters far more than at rank 99 vs 100
+    </div>
+    <div class="paradigm-col p3">
+      <h4>Listwise ← this lesson</h4>
+      Train on the entire ordered list simultaneously. The loss function is defined over the probability of observing the actual ranking given the model's scores.<br><br>
+      <strong>Loss:</strong> Listwise MLE (Plackett-Luce)<br>
+      <strong>Unit of training:</strong> full ranked list<br>
+      <strong>Advantage:</strong> directly optimises the ranking metric; captures position-level interactions
+    </div>
+  </div>
+
+  <!-- 3 -->
+  <h2>3. The Plackett-Luce model: probability of a ranking</h2>
+
+  <p>
+    Listwise MLE is grounded in the <strong>Plackett-Luce (PL) model</strong>, a probabilistic
+    model of ranking that assigns a probability to every possible ordering of a set of items.
+  </p>
+
+  <p>
+    Given a set of <em>n</em> items with model-predicted scores s₁, s₂, …, sₙ, the probability
+    of observing a specific ranking π (where π(1) is ranked first, π(2) second, etc.) is:
+  </p>
+
+  <pre>P(π | s) = ∏ᵢ₌₁ⁿ  exp(s_π(i)) / Σⱼ₌ᵢⁿ exp(s_π(j))
+
+Expanded for n=4 items (positions 1 through 4):
+
+P(π) = [ exp(s_π(1)) / (exp(s_π(1)) + exp(s_π(2)) + exp(s_π(3)) + exp(s_π(4))) ]
+     × [ exp(s_π(2)) / (exp(s_π(2)) + exp(s_π(3)) + exp(s_π(4))) ]
+     × [ exp(s_π(3)) / (exp(s_π(3)) + exp(s_π(4))) ]
+     × [ exp(s_π(4)) / exp(s_π(4)) ]   ← always 1</pre>
+
+  <p>
+    Intuition: the first factor is the probability that the item ranked 1st is selected first from
+    all items (like a softmax). The second factor is the probability that the item ranked 2nd is
+    selected next from the remaining items. And so on. This is the <strong>sequential selection</strong>
+    interpretation of a ranking.
+  </p>
+
+  <div class="callout info">
+    <div class="callout-label">Connection to multinomial logit</div>
+    The PL model at each step is identical to a multinomial logit (softmax) choice from the
+    remaining items. If you have ever trained a classification model with cross-entropy loss,
+    you have used the same probabilistic foundation as listwise MLE — applied to a sequence
+    of choices rather than a single choice.
+  </div>
+
+  <!-- 4 -->
+  <h2>4. The listwise MLE loss function</h2>
+
+  <p>
+    To train a model using listwise MLE, maximise the log-likelihood of observing the true ranking
+    π* (the ground-truth ordering, e.g., labelled by human experts or derived from historical choices):
+  </p>
+
+  <pre>𝓛 = log P(π* | s)
+
+  = Σᵢ₌₁ⁿ [ s_π*(i)  −  log( Σⱼ₌ᵢⁿ exp(s_π*(j)) ) ]
+
+  = Σᵢ₌₁ⁿ  log softmax_i(s)</pre>
+
+  <p>
+    Each term is a log-probability from a softmax over the remaining unranked items. Minimising
+    the negative log-likelihood (standard gradient descent) pushes the model to assign higher
+    scores to items that should appear earlier in the ranking.
+  </p>
+
+  <p>
+    When a <strong>neural network</strong> is used as the scoring function, backpropagation
+    through this loss updates the network weights to better order the full list — not just to
+    score individual items more accurately.
+  </p>
+
+  <!-- 5 -->
+  <h2>5. Worked example: credit card product ranking</h2>
+
+  <p>
+    A bank wants to rank 4 credit card products for a customer. Ground truth (historical data
+    on similar customers): Product A is accepted most often, then C, then D, then B.
+    True ranking π* = [A, C, D, B].
+  </p>
+
+  <p>Current model scores: s_A = 2.1, s_B = 0.3, s_C = 1.8, s_D = 1.2</p>
+
+  <div class="rank-example">
+    <div class="rank-row"><div class="rank-pos">1</div><div class="rank-label"><strong>Product A</strong> — Premium Cashback</div><div class="rank-score">s = 2.1</div></div>
+    <div class="rank-row"><div class="rank-pos">2</div><div class="rank-label"><strong>Product C</strong> — Travel Rewards</div><div class="rank-score">s = 1.8</div></div>
+    <div class="rank-row"><div class="rank-pos">3</div><div class="rank-label"><strong>Product D</strong> — No-Fee Standard</div><div class="rank-score">s = 1.2</div></div>
+    <div class="rank-row"><div class="rank-pos bad">4</div><div class="rank-label"><strong>Product B</strong> — Student Card</div><div class="rank-score bad">s = 0.3</div></div>
+  </div>
+
+  <p>The model's ranking [A, C, D, B] matches π* = [A, C, D, B] — perfect for this customer.</p>
+
+  <p>Computing the PL probability confirms the loss is low (model agrees with truth):</p>
+  <pre>Step 1: P(A ranked 1st) = e^2.1 / (e^2.1 + e^1.8 + e^1.2 + e^0.3) = 8.17 / 14.43 = 0.566
+Step 2: P(C ranked 2nd | A gone) = e^1.8 / (e^1.8 + e^1.2 + e^0.3) = 6.05 / 9.73  = 0.622
+Step 3: P(D ranked 3rd | A,C gone) = e^1.2 / (e^1.2 + e^0.3) = 3.32 / 4.65       = 0.714
+Step 4: P(B ranked 4th) = 1.0
+
+log P(π*) = log(0.566) + log(0.622) + log(0.714) + log(1.0) = −1.07</pre>
+
+  <p>
+    Gradient descent on −log P(π*) would push scores to increase this probability — which here
+    is already high (0.566 × 0.622 × 0.714 ≈ 0.25, vs. the worst-possible ordering's probability
+    of roughly 0.003 for this score configuration).
+  </p>
+
+  <!-- 6 -->
+  <h2>6. Evaluation: NDCG</h2>
+
+  <p>
+    The standard evaluation metric for ranking models is
+    <strong>NDCG (Normalised Discounted Cumulative Gain)</strong>. It rewards placing highly
+    relevant items at the top of the list, with a logarithmic discount for lower positions:
+  </p>
+
+  <pre>DCG@k  = Σᵢ₌₁ᵏ  relevance(i) / log₂(i + 1)
+
+NDCG@k = DCG@k / IDCG@k
+
+where IDCG@k = DCG of the perfect (ideal) ranking up to position k</pre>
+
+  <p>
+    NDCG@k = 1.0 is a perfect ranking (most relevant items at the top). NDCG@k = 0 means the
+    most relevant items are all at the bottom. For credit card recommendation with binary
+    relevance (accepted / not accepted), placing the item the customer would accept at rank 1
+    vs rank 4 has a large NDCG impact.
+  </p>
+
+  <div class="callout insight">
+    <div class="callout-label">Why NDCG, not AUC?</div>
+    AUC measures discrimination over all possible thresholds — it treats rank 1 and rank 99
+    equivalently. In a recommendation context, only the top 3–5 items are shown to the customer;
+    what happens at rank 50 is irrelevant. NDCG@3 or NDCG@5 directly measures the quality of
+    the items shown to users — the operationally relevant part of the ranking.
+  </div>
+
+  <!-- 7 -->
+  <h2>7. Finance-specific considerations</h2>
+
+  <table>
+    <thead>
+      <tr><th>Challenge</th><th>Detail</th><th>Response</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Position bias in training labels</strong></td>
+        <td>Historical acceptance data is biased by what was presented — customers accepted or rejected what they were shown, not what they were never offered. Items never ranked first are under-represented.</td>
+        <td>Inverse propensity weighting (IPW) corrects for exposure bias. Items shown less frequently get higher weight in the loss to compensate.</td>
+      </tr>
+      <tr>
+        <td><strong>Business constraint enforcement</strong></td>
+        <td>Regulators (e.g., FCA Consumer Duty) require that product recommendations be in the customer's best interest — maximising bank profit at the expense of customer suitability is prohibited.</td>
+        <td>Constrained ranking: suitability score enters as a hard constraint (no unsuitable product above rank 2) or as a term in the composite scoring function weighted by regulatory priority.</td>
+      </tr>
+      <tr>
+        <td><strong>Explainability</strong></td>
+        <td>A customer who sees product A recommended first may ask why. A neural scoring function is not self-explanatory.</td>
+        <td>SHAP values at the list level — explain which features drove product A above product C for this customer. Some banks use additive scoring models (LIME) as a surrogate explanation for the ranked output.</td>
+      </tr>
+      <tr>
+        <td><strong>MRM tier</strong></td>
+        <td>Ranking models used in customer-facing decisions (credit product recommendation) carry fair lending and consumer protection risk — High MRM tier, disparate impact analysis required.</td>
+        <td>Full SR 11-7 lifecycle. Additionally, NDCG@k should be monitored by demographic segment to detect differential recommendation quality across protected groups.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+
+    <div class="question">
+      <p>1. What is the key difference between pairwise and listwise learning-to-rank?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Pairwise uses neural networks; listwise uses gradient boosting</button>
+        <button class="option" data-correct="false">Pairwise requires more labelled data than listwise</button>
+        <button class="option" data-correct="true">Pairwise trains on item pairs and cannot account for position context; listwise trains on the full ordered list and directly optimises ranking quality</button>
+        <button class="option" data-correct="false">Listwise is only suitable for binary relevance labels; pairwise handles graded relevance</button>
+      </div>
+      <div class="feedback good">Correct. Pairwise trains on A-above-B comparisons independently — it does not know whether the swap is at position 1 vs 2 (high impact) or position 99 vs 100 (near-zero impact). Listwise trains on the full list simultaneously, so the loss naturally weights top-position errors more heavily via the sequential softmax structure of the Plackett-Luce model.</div>
+      <div class="feedback bad">The core distinction is the training unit and what the loss optimises. Pairwise: each (A, B) pair is a training example; inversions are penalised equally regardless of position. Listwise: the full ordered list is the training example; the Plackett-Luce loss naturally down-weights errors at lower positions because they affect a smaller denominator in the sequential softmax.</div>
+    </div>
+
+    <div class="question">
+      <p>2. In the Plackett-Luce model, what does the denominator at step i represent?</p>
+      <div class="options">
+        <button class="option" data-correct="false">The total score of all items in the full list</button>
+        <button class="option" data-correct="true">The sum of exponentiated scores of all items not yet ranked — the remaining pool at position i</button>
+        <button class="option" data-correct="false">The normalisation constant across all possible rankings of n items</button>
+        <button class="option" data-correct="false">The predicted acceptance probability of the item at position i</button>
+      </div>
+      <div class="feedback good">Correct. At each step i, the denominator is Σⱼ₌ᵢⁿ exp(s_π(j)) — the sum over items not yet placed in the ranking. This is a softmax over the remaining candidates, giving the probability that the item at position i is the "best" of those remaining. This sequential selection process is the Plackett-Luce model.</div>
+      <div class="feedback bad">The PL denominator at step i sums exp(score) over all items remaining to be ranked — those at position i and below. It is a softmax denominator for a choice from the remaining pool. This is what makes PL a sequential selection model: at each rank position, the item chosen is modelled as a draw from a softmax distribution over the unplaced items.</div>
+    </div>
+
+    <div class="question">
+      <p>3. A credit card recommendation model has NDCG@3 = 0.61. What does this mean operationally?</p>
+      <div class="options">
+        <button class="option" data-correct="false">61% of customers accept one of the recommended products</button>
+        <button class="option" data-correct="false">61% of AUC is achieved in the top 3 ranked items</button>
+        <button class="option" data-correct="true">The model achieves 61% of the maximum possible discounted cumulative gain in the top 3 positions — a product the customer would accept is ranked somewhat high but not optimally</button>
+        <button class="option" data-correct="false">The model's precision at the first rank position is 61%</button>
+      </div>
+      <div class="feedback good">Correct. NDCG@3 = DCG@3 / IDCG@3 — the achieved gain in the top 3 positions relative to the ideal (perfect) ranking. 0.61 means the model is capturing 61% of the possible ranking quality in the first 3 positions. A score of 1.0 would mean the most relevant products are always shown first. Improving NDCG@3 by 0.05–0.10 typically produces measurable uplift in offer acceptance rates.</div>
+      <div class="feedback bad">NDCG@3 = DCG@3 / IDCG@3. DCG gives discounted credit for relevant items at each of the top 3 positions; IDCG is the score of the perfect ranking. NDCG = 0.61 means the model achieves 61% of the maximum possible ranking quality in the top 3 slots — relevant products are getting into the top 3, but not always at rank 1. Room to improve by pushing the highest-relevance product to rank 1 more consistently.</div>
+    </div>
+
+    <div class="question">
+      <p>4. A bank trains a product recommendation model on historical customer offer acceptance data. What is "position bias" in this context and why does it matter?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Customers in certain geographic locations are more likely to accept offers</button>
+        <button class="option" data-correct="false">The model scores products biased toward the most profitable options for the bank</button>
+        <button class="option" data-correct="true">Customers can only accept products they were shown — items that were historically ranked lower get fewer acceptances, but this may reflect presentation order, not true preference</button>
+        <button class="option" data-correct="false">The Plackett-Luce model assigns too much weight to the first position in the training loss</button>
+      </div>
+      <div class="feedback good">Correct. Position bias: historically, product A was shown first to 80% of customers, so it has many acceptances. Product C was shown third to most customers — so even if C is objectively better for many customers, it has fewer acceptances because customers often accepted whichever product appeared first. Training on raw acceptance labels biases the model toward products that have been favoured by previous presentation decisions. Inverse propensity weighting corrects for this.</div>
+      <div class="feedback bad">Position bias is a feedback loop problem. Customers only accept products they see, and products shown first get disproportionately high acceptance rates regardless of their true suitability. A model trained on historical acceptance data learns to reproduce the previous system's biases. Inverse Propensity Weighting (IPW) corrects this by down-weighting acceptances of items that were heavily exposed and up-weighting acceptances of less-exposed items — recovering the true preference signal from biased observational data.</div>
+    </div>
+
+    <div class="question">
+      <p>5. Under FCA Consumer Duty (UK), why might a listwise ranking model that maximises bank profit require governance intervention?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Consumer Duty prohibits the use of ML models in product recommendation</button>
+        <button class="option" data-correct="false">The listwise loss function cannot incorporate profit as a relevance label</button>
+        <button class="option" data-correct="true">Maximising bank profit may rank products unsuitable for the customer at the top, violating the regulatory requirement to act in the customer's best interest</button>
+        <button class="option" data-correct="false">Consumer Duty requires all product recommendations to use interpretable logistic regression</button>
+      </div>
+      <div class="feedback good">Correct. Consumer Duty (and similar regulations like MiFID II suitability requirements) requires that recommendations be in the customer's best interest. A model optimising purely for bank profitability may surface high-margin products that are not suitable for the customer's financial situation. Governance response: constrained ranking — suitability enters as a hard filter or a high-weight term in the composite objective, with the bank's commercial objective as a secondary optimiser.</div>
+      <div class="feedback bad">Consumer Duty and suitability regulations require that product recommendations genuinely serve the customer's interest. A profit-maximising ranker may learn to rank high-margin products at the top regardless of suitability. This is a regulatory and conduct risk. The governance response is to define the ranking objective as a constrained optimisation: maximise predicted acceptance × profitability subject to suitability constraints — and monitor NDCG by demographic segment for differential treatment.</div>
+    </div>
+
+    <div class="quiz-score"></div>
+  </div>
+
+  <hr>
+
+  <h2>Primary source to read next</h2>
+  <p>
+    <strong>Cao et al. — "Learning to Rank: From Pairwise Approach to Listwise Approach" (ICML 2007)</strong>
+  </p>
+  <p>
+    The paper that introduced the listwise framework and the Plackett-Luce connection to MLE.
+    Short and mathematically precise — read Section 3 on the listwise loss derivation.
+    Available on arXiv. Pair with the LambdaMART paper (Burges, 2010) for the gradient boosting
+    implementation used in practice (this is what LightGBM's rank:ndcg objective implements).
+  </p>
+
+  <h2>Course complete</h2>
+  <p>
+    You have completed all 11 lessons in the <em>AI/ML in Banking &amp; Finance</em> curriculum:
+  </p>
+  <ul>
+    <li><a href="0001-credit-risk-pd-modelling.html">01 — PD Modelling</a></li>
+    <li><a href="0002-lgd-estimation.html">02 — LGD Estimation</a></li>
+    <li><a href="0003-ead-forecasting.html">03 — EAD Forecasting</a></li>
+    <li><a href="0004-credit-scoring-alt-data.html">04 — Credit Scoring &amp; Alternative Data</a></li>
+    <li><a href="0005-var-es-market-risk.html">05 — VaR &amp; ES</a></li>
+    <li><a href="0006-frtb-nmrf.html">06 — FRTB &amp; NMRF</a></li>
+    <li><a href="0007-algo-trading-signals.html">07 — Algo Trading Signals</a></li>
+    <li><a href="0008-ccar-stress-testing.html">08 — CCAR &amp; Stress Testing</a></li>
+    <li><a href="0009-fraud-detection.html">09 — Fraud Detection</a></li>
+    <li><a href="0010-aml.html">10 — Anti-Money Laundering</a></li>
+    <li><strong>11 — Listwise MLE (this lesson)</strong></li>
+  </ul>
+  <p>
+    Next steps: revisit lessons where quiz scores were low, read the primary sources, and ask your
+    teacher to go deeper on any topic — the chat is always available for follow-up questions,
+    worked examples, or connecting concepts across lessons.
+  </p>
+
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — the Plackett-Luce derivation, NDCG calculation, position bias correction, or consumer duty constraints are all worth discussing further.</p>
+    <p style="margin-top:0.5rem;">Lesson 11 of 11 · <em>AI/ML in Banking &amp; Finance</em> course · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

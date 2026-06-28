@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 27: Regulatory Compliance Risk</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<div class="page">
+  <div class="lesson-meta">Lesson 27 · Compliance &amp; RegTech</div>
+  <h1>Regulatory Compliance Risk</h1>
+  <p class="subtitle">From rule-based compliance to ML-powered RegTech — trade surveillance, sanctions screening, and the quantification of compliance risk as a model input.</p>
+
+  <h2>1. What is regulatory compliance risk</h2>
+  <p><strong>Compliance risk</strong> is the risk of legal or regulatory sanctions, material financial loss, or reputational damage from failure to comply with laws, regulations, and standards. In banking, compliance risk is enormous in scope — covering market conduct (MAR, MiFID II), financial crime (AML, sanctions), data protection (GDPR), consumer protection (Consumer Duty), and prudential requirements (Basel, IFRS).</p>
+  <p>Unlike market or credit risk, compliance risk is harder to quantify: losses arise from regulatory fines, remediation costs, and reputational damage — events with fat-tailed, scenario-dependent severity. The major recent compliance failures:</p>
+  <ul>
+    <li>HSBC AML failures (2012): $1.9bn fine for facilitating drug cartel money laundering</li>
+    <li>Deutsche Bank market manipulation (2015): $2.5bn fine for LIBOR manipulation</li>
+    <li>Goldman Sachs 1MDB (2020): $2.9bn fine for bribery and fraud in Malaysia</li>
+    <li>Multiple banks — crypto/digital asset sanctions violations: $1bn+ fines in 2023-24</li>
+  </ul>
+
+  <h2>2. Trade surveillance</h2>
+  <p><strong>Trade surveillance</strong> monitors trading activity for market abuse — insider trading, market manipulation (spoofing, layering, front-running, wash trading). MiFID II Article 16 requires investment firms to have effective surveillance arrangements. ML has significantly advanced surveillance capability beyond rule-based systems:</p>
+  <table>
+    <thead><tr><th>Market abuse type</th><th>Pattern</th><th>ML detection technique</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Spoofing</strong></td><td>Large orders placed and immediately cancelled to move price, then trade on the manipulation</td><td>Sequence models (LSTM/Transformer) on order book events; order cancel rate anomaly detection</td></tr>
+      <tr><td><strong>Insider trading</strong></td><td>Unusual trading volume or position changes before a material corporate announcement</td><td>Anomaly detection on trader behaviour relative to historical baseline; NLP on internal communications correlated with trade timing</td></tr>
+      <tr><td><strong>Front-running</strong></td><td>Trading ahead of a client order that will move the market</td><td>Correlation analysis between proprietary trades and client order flow; time-series analysis with causal structure</td></tr>
+      <tr><td><strong>Wash trading</strong></td><td>Self-dealing to create artificial volume — simultaneously buying and selling between affiliated accounts</td><td>Network analysis identifying circular trade flows; entity resolution to link affiliated accounts</td></tr>
+    </tbody>
+  </table>
+  <p>ML surveillance has a precision-recall challenge similar to fraud detection (Lesson 9): too many false positives overwhelm compliance investigators; too few alerts miss genuine abuse. Threshold calibration and escalation tiering are critical design choices.</p>
+
+  <h2>3. Sanctions screening</h2>
+  <p>Banks must screen all customers, transactions, and counterparties against sanctions lists (OFAC, HM Treasury, EU, UN) and Politically Exposed Persons (PEP) lists. A payment to a sanctioned entity triggers immediate blocking and regulatory reporting. ML applications:</p>
+  <ul>
+    <li><strong>Fuzzy name matching:</strong> sanctions lists use transliterated names (Russian, Arabic, Chinese) in many variants. ML models (character-level embeddings, edit distance with ML-weighted features) match "Oleksandr Shevchenko" against "A. Shevchenko", "Shhevchenko", and Cyrillic variants more accurately than exact-match rules.</li>
+    <li><strong>Entity resolution:</strong> linking corporate entities across jurisdictions — a sanctioned Russian oligarch may own a Cyprus SPV that owns a UK property company. Graph ML traces beneficial ownership chains through complex structures.</li>
+    <li><strong>Alert management:</strong> most sanctions alerts are false positives (names that match but are different individuals). ML alert scoring (probability the match is a true positive) prioritises investigator time. Features: country of origin, transaction pattern, counterparty history, name uniqueness.</li>
+  </ul>
+
+  <h2>4. Regulatory capital model reporting — COREP and Pillar 3</h2>
+  <p>Banks produce vast volumes of regulatory data: COREP (Capital Requirements Reporting), FINREP (Financial Reporting), LCR reports, large exposures, leverage ratio. Errors in these reports trigger regulatory penalties and may indicate underlying model problems.</p>
+  <p>ML quality assurance for regulatory reporting:</p>
+  <ul>
+    <li><strong>Cross-report consistency:</strong> ML-trained expectations of how COREP capital ratios, FINREP balance sheet, and internal management accounts relate — flags inconsistencies before regulatory submission</li>
+    <li><strong>Anomaly detection on report time series:</strong> a sudden change in RWA density (RWA / Total Assets) signals either a genuine portfolio shift or a model/data error. Statistical control charts and ML anomaly detection flag unusual movements for investigation.</li>
+    <li><strong>NLP on regulatory text:</strong> automated monitoring of new regulatory publications (EBA Q&amp;As, PRA consultation papers, BCBS standards) for items that affect current model assumptions or reporting methodology — ensuring models are updated when rules change.</li>
+  </ul>
+
+  <h2>5. Compliance risk quantification</h2>
+  <p>Quantifying compliance risk for capital purposes uses the same LDA framework as cyber/op risk (Lesson 22). The additional challenge: regulatory fine severity is highly scenario-dependent and correlated across the firm (a single compliance failure can trigger multi-jurisdictional enforcement). Key model inputs:</p>
+  <pre>Compliance loss distribution:
+  Frequency: regulatory investigation rate per compliance domain
+  Severity:  fine + remediation costs + business disruption
+             → Pareto distribution with regulator-specific calibration
+             (US DoJ / FCA fines have very different severity distributions)
+
+Scenario analysis: "what if we had the same AML control failure as HSBC 2012?"
+  → estimate institutional-specific loss under that scenario
+  → compare against modelled tail; assess whether capital is adequate</pre>
+
+  <h2>6. Consumer Duty and conduct risk ML</h2>
+  <p>The FCA's <strong>Consumer Duty</strong> (effective July 2023) requires firms to deliver good outcomes for retail customers — not just follow process rules. This creates outcome monitoring requirements where ML plays a key role:</p>
+  <ul>
+    <li><strong>Outcome monitoring:</strong> ML models monitoring whether retail customers are achieving expected financial outcomes (savings targets met, insurance claims paid within expected timeframes, suitable products held)</li>
+    <li><strong>Vulnerable customer identification:</strong> NLP on call centre transcripts + account behaviour to identify potentially vulnerable customers (mental health indicators, bereavement, financial distress) — triggering appropriate support protocols</li>
+    <li><strong>Mis-selling detection:</strong> ML analysis of sales conversations (NLP on transcripts) to detect high-pressure sales, suitability failures, or misleading statements — before they become FCA enforcement actions</li>
+  </ul>
+
+  <div class="callout risk">
+    <div class="callout-label">The three lines and ML model governance</div>
+    All compliance ML models should operate within the Three Lines of Defence framework: First Line (business) builds and runs the model; Second Line (Compliance/Risk) provides the governance framework and independent oversight; Third Line (Internal Audit) provides independent assurance on model controls. For AML and sanctions models, regulators (FCA, NCA, FinCEN) expect the Three Lines framework to be demonstrably applied — documented in the Model Risk Policy and evidenced through validation reports, governance committee minutes, and audit findings.
+  </div>
+
+  <hr>
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+    <div class="question">
+      <p>1. A trade surveillance ML model generates 500 alerts per day but 98% are false positives. What is the practical impact, and how should the model be redesigned?</p>
+      <div class="options">
+        <button class="option" data-correct="false">A 98% false positive rate is acceptable as long as the model catches all true cases</button>
+        <button class="option" data-correct="true">500 alerts/day means investigators must review ~10 per working day per analyst — a 2% precision rate makes this unsustainable and alerts will be ignored, defeating the purpose. The model needs precision improvement: stricter thresholds, tiered escalation, and false positive feedback loops to retrain.</button>
+        <button class="option" data-correct="false">The regulator sets the false positive rate; it cannot be adjusted by the firm</button>
+        <button class="option" data-correct="false">98% false positives is normal for surveillance and regulators accept it</button>
+      </div>
+      <div class="feedback good">Correct. This is the alert fatigue problem (analogous to fraud models, Lesson 9, but with higher-stakes individual investigations). If investigators must process 490 false positives to find 10 true cases, they will — rationally — reduce the effort per alert, increasing the risk of missing a genuine case. Alert fatigue is a documented failure mode of early rule-based surveillance systems. ML solutions: score-based tiering (low/medium/high priority), precision-oriented threshold calibration (accepting some missed true positives for manageable alert volume), feedback loops where investigator dispositions retrain the model.</div>
+      <div class="feedback bad">Alert fatigue is a genuine surveillance failure mode. 500 daily alerts requires a large investigation team; 2% precision means 490 wasted reviews per day. In practice, under-resourced teams triage alerts mechanically rather than thoroughly — and genuine abuse slips through. The fix requires a better model (higher precision) AND a better operational process: risk-scored tiering sends high-confidence alerts to immediate review and routes borderline cases to a lower-priority queue. The model must be calibrated to keep the total investigation workload within the team's capacity, not just to maximise recall.</div>
+    </div>
+    <div class="question">
+      <p>2. Why is fuzzy name matching superior to exact-match rules for sanctions screening, and what specific ML technique is most effective?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Fuzzy matching is not used in sanctions screening — exact match is the regulatory standard</button>
+        <button class="option" data-correct="true">Sanctioned individuals use name variants, transliterations, and aliases; exact matching misses them. Character-level embeddings or phonetic matching algorithms (ML-weighted edit distance) catch variants exact match would miss while ML scoring reduces false positives from similar but different names.</button>
+        <button class="option" data-correct="false">Fuzzy matching is used only for PEP screening, not for OFAC sanctions lists</button>
+        <button class="option" data-correct="false">ML creates too many false positives for sanctions screening — rule-based exact match is more precise</button>
+      </div>
+      <div class="feedback good">Correct. Sanctions evasion typically exploits name variation: transliteration differences (Arabic names can be rendered multiple ways in Latin script), spelling errors in data entry, use of aliases or maiden names, name component reordering. Exact match would miss "Mohammad Al-Rasheed" matching "Mohammed Alrashid" — the same person, different transliteration conventions. Character-level embedding models (or phonetic algorithms like Soundex/Double Metaphone enhanced with ML features) catch these variants. The ML scoring layer then ranks matches by true-positive likelihood, managing the false positive rate to a level investigators can handle.</div>
+      <div class="feedback bad">Exact match fails at the specific challenge of sanctions evasion: name variation. International names transliterate into English differently across passports, data entry systems, and transliteration standards. A sanctioned Russian national may appear as "Ivan Petrov", "I. Petroff", "Иван Петров" — none of which exactly match each other. ML-based fuzzy matching (character-level embeddings capturing name similarity, edit distance weighted by character importance, phonetic similarity) identifies probable matches. The ML scoring layer then assigns a false-positive probability — filtering out common name coincidences from true sanctions hits.</div>
+    </div>
+    <div class="question">
+      <p>3. Under the FCA's Consumer Duty, a bank uses NLP to monitor call centre transcripts. What outcome is the model targeting, and why does this represent a shift from previous conduct regulation?</p>
+      <div class="options">
+        <button class="option" data-correct="false">The model is checking compliance with script adherence — ensuring agents use approved wording</button>
+        <button class="option" data-correct="true">The model monitors for actual customer outcomes — whether customers received suitable products, were not misled, and were treated fairly — rather than just confirming that prescribed processes were followed</button>
+        <button class="option" data-correct="false">The model predicts which calls will generate customer complaints for triage purposes</button>
+        <button class="option" data-correct="false">The model ensures regulatory disclosures were read verbatim as prescribed by FCA rules</button>
+      </div>
+      <div class="feedback good">Correct. This is the key shift in Consumer Duty: from "did we follow the process?" to "did the customer get a good outcome?" Previous regulation (TCF — Treating Customers Fairly) required process compliance; Consumer Duty requires outcome demonstration. An NLP model detecting a sales agent who technically read all prescribed disclosures but did so in a manner that confused a vulnerable customer is identifying an outcome failure that a process-compliance model would miss. Outcome monitoring requires ML analysis of what actually happened in the conversation, not a checklist of steps completed.</div>
+      <div class="feedback bad">Consumer Duty's innovation is shifting from process compliance to outcome monitoring. Under TCF, a firm demonstrated compliance by showing it followed prescribed steps (read the key facts, obtained suitability declaration). Under Consumer Duty, the test is: did the customer actually receive a product that met their needs at fair value? NLP on call transcripts monitors the actual conversation — tone, clarity of explanation, identification of vulnerability signals, evidence that the customer understood the product. A firm cannot "box-tick" its way to Consumer Duty compliance; it must demonstrate actual good customer outcomes, which is inherently an ML monitoring problem.</div>
+    </div>
+    <div class="quiz-score"></div>
+  </div>
+  <hr>
+  <h2>Primary source to read next</h2>
+  <p><strong>FCA — "FG22/5: Final non-handbook guidance for firms on the Consumer Duty" (July 2022)</strong><br>
+  <a href="https://www.fca.org.uk/publications/finalised-guidance/fg22-5-final-non-handbook-guidance-firms-consumer-duty" target="_blank">fca.org.uk — Consumer Duty Final Guidance</a></p>
+  <p>The FCA's detailed guidance explains what "good outcomes" means in practice across the four Duty outcomes (products/services, price/value, consumer understanding, consumer support). Essential for understanding what outcome monitoring models must demonstrate. Pair with OFAC's SDN List technical documentation for sanctions screening requirements.</p>
+  <h2>What comes next</h2>
+  <ul>
+    <li><a href="0026-security-services-pricing.html">← Lesson 26: Security Services</a></li>
+    <li><a href="0028-sherwood-models.html">Lesson 28: Sherwood Models →</a></li>
+  </ul>
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — trade surveillance precision/recall calibration, sanctions screening methodology, or Consumer Duty outcome monitoring frameworks are all worth discussing further.</p>
+    <p style="margin-top:.5rem;">Lesson 27 · <em>AI/ML in Banking &amp; Finance</em> · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

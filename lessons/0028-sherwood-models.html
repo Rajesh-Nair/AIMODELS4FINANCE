@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 28: Sherwood Models</title>
+<link rel="stylesheet" href="../assets/styles.css">
+<style>
+  .pl-flow { display:grid; grid-template-columns: repeat(4, 1fr); gap:.6rem; margin:1.2rem 0; }
+  .pl-box { border:1px solid var(--rule); border-radius:4px; padding:.7rem .8rem; font-family:var(--font-sans); font-size:.8rem; text-align:center; }
+  .pl-box h4 { font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; margin-bottom:.3rem; font-weight:700; }
+  .pl-box.rev { border-left:3px solid var(--accent); } .pl-box.rev h4 { color:var(--accent); }
+  .pl-box.cost { border-left:3px solid var(--warn); } .pl-box.cost h4 { color:var(--warn); }
+  .pl-box.loss { border-left:3px solid var(--danger); } .pl-box.loss h4 { color:var(--danger); }
+  .pl-box.out { border-left:3px solid #5a7a4e; background:#f5f9f4; } .pl-box.out h4 { color:#5a7a4e; }
+  @media(max-width:560px){ .pl-flow{grid-template-columns:1fr 1fr;} }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="lesson-meta">Lesson 28 · Retail Credit Strategy</div>
+  <h1>Sherwood Models</h1>
+  <p class="subtitle">The customer-level acquisition profitability framework — how retail banks and credit card lenders move beyond "will they default?" to "will we make money from this customer over the life of the relationship?"</p>
+
+  <div class="callout info">
+    <div class="callout-label">About this lesson</div>
+    The "Sherwood model" is a practitioner framework term used within retail banking and credit card operations — specifically for customer-level P&L-driven acquisition and portfolio management. It does not appear extensively in public academic literature by this name, which is consistent with proprietary internal model frameworks in financial services. This lesson is built from the definition: <em>"a specialized credit risk and profitability framework used by retail banks and credit card lenders to analyze customer-level acquisition decisions, evaluate lifetime portfolio value, and optimize P&L impact for loans."</em> The underlying methodology is well-documented in the profit-based credit underwriting literature.
+  </div>
+
+  <h2>1. The problem with purely risk-based acquisition</h2>
+  <p>Traditional credit underwriting asks one question: <em>will this applicant default?</em> This is the PD model (Lesson 1). A risk-only acquisition strategy approves all applicants above a PD threshold and declines those below. The flaw:</p>
+  <ul>
+    <li><strong>Low-risk ≠ high-profit:</strong> the safest borrowers (highest credit scores) are typically the least profitable — they borrow modestly, pay on time, carry low balances, and generate little interest income. In credit cards, they may pay in full every month (transactors) rather than carrying a balance (revolvers).</li>
+    <li><strong>High-risk ≠ unprofitable:</strong> moderate-risk customers generate significant interest income and fee revenue. If priced correctly and acquired at the right credit limit, their losses are more than offset by revenue.</li>
+    <li><strong>Customer value depends on behaviour:</strong> the same credit score customer can be high-value (active revolving, product cross-sell, longevity) or low-value (early repayment, attrition, fraud) — PD alone does not predict this.</li>
+  </ul>
+  <p>Sherwood models resolve this by replacing the single PD question with a full <strong>lifetime P&L forecast</strong> for each prospective customer.</p>
+
+  <h2>2. The Sherwood model P&L decomposition</h2>
+  <p>The core of a Sherwood model is a decomposition of expected lifetime P&L into its component revenue and cost streams, modelled at the individual customer level:</p>
+  <div class="pl-flow">
+    <div class="pl-box rev">
+      <h4>Revenue</h4>
+      Interest income (balance × APR)<br>
+      Annual/monthly fees<br>
+      Interchange fees (card transactions)<br>
+      Late payment fees<br>
+      FX transaction fees
+    </div>
+    <div class="pl-box cost">
+      <h4>Operating Costs</h4>
+      Acquisition cost (marketing, processing)<br>
+      Servicing cost (statements, calls)<br>
+      Rewards / cashback<br>
+      Funding cost (cost of capital × balance)<br>
+      Card network costs
+    </div>
+    <div class="pl-box loss">
+      <h4>Credit Losses</h4>
+      Expected loss = PD × LGD × EAD<br>
+      Fraud losses<br>
+      Recovery costs (collection spend)
+    </div>
+    <div class="pl-box out">
+      <h4>Net P&L</h4>
+      Revenue<br>
+      − Costs<br>
+      − Losses<br>
+      ────────<br>
+      <strong>= Lifetime NPV</strong>
+    </div>
+  </div>
+  <p>Each component is a <strong>separate model</strong>, trained on the bank's own portfolio history. The outputs are combined into a single per-customer P&L forecast, which is then discounted to present value (NPV) over a projection horizon (typically 3–5 years for credit cards, up to the full loan term for personal loans).</p>
+
+  <h2>3. The vintage model — the measurement backbone</h2>
+  <p>The Sherwood model is calibrated using <strong>vintage analysis</strong>: tracking cohorts of customers acquired in the same period (vintage) through time, observing how their actual P&L evolves against the acquisition-time forecast.</p>
+  <pre>Vintage analysis example (credit cards):
+
+Month-on-book →      3m    6m    12m   18m   24m   36m
+─────────────────────────────────────────────────────
+Balance (% of limit) 45%   52%   58%   55%   52%   45%
+Default rate (annlsd)  1.2%  1.8%  2.5%  2.8%  2.6%  2.1%
+Revenue / balance      12%   13%   14%   14%   13%   12%
+Net P&L / account      £8    £12   £18   £16   £14   £10
+
+Acquisition-time forecast for this vintage: £15 per account per month by 12m
+Actual:                                     £18 — model was conservative ✓</pre>
+  <p>Vintage analysis serves two purposes: (1) validates that the acquisition model's P&L forecasts are accurate, and (2) provides the training data for the next model refresh — linking applicant characteristics at acquisition to realised lifetime P&L.</p>
+
+  <h2>4. The ML models within Sherwood</h2>
+  <p>A Sherwood model is not a single ML model — it is an ensemble of sub-models, each addressing a component of the P&L decomposition:</p>
+  <table>
+    <thead><tr><th>Sub-model</th><th>Target variable</th><th>Key features</th><th>ML approach</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Default / credit loss</strong></td><td>PD over projection horizon; LGD; EAD evolution</td><td>Bureau score, income, debt-to-income, credit mix, existing obligations</td><td>XGBoost scorecard (Lessons 1–4); survival model for time-to-default</td></tr>
+      <tr><td><strong>Revolve propensity</strong></td><td>Will this customer carry a balance (revolver) or pay in full (transactor)?</td><td>Bureau utilisation rate, income vs credit limit, payment behaviour proxies</td><td>Logistic regression or GBM binary classifier; segment-specific models</td></tr>
+      <tr><td><strong>Balance ramp</strong></td><td>How quickly will the customer build up a balance, and what steady-state balance will they maintain?</td><td>Initial credit limit, product type, income, existing card portfolio</td><td>Time-series regression; LSTM for the balance trajectory</td></tr>
+      <tr><td><strong>Attrition / lifetime</strong></td><td>When will the customer close the account or stop using it?</td><td>Tenure, competitor offers, product usage, rate environment</td><td>Survival analysis (Cox PH); gradient boosting on time-to-attrition</td></tr>
+      <tr><td><strong>Cross-sell / product uptake</strong></td><td>Will this customer add a mortgage, savings, or other product?</td><td>Product holdings, tenure, financial life stage</td><td>Multi-label classifier; listwise ranking (Lesson 11)</td></tr>
+    </tbody>
+  </table>
+
+  <h2>5. Acquisition decision optimisation</h2>
+  <p>The Sherwood model output — a distribution of forecast P&L per applicant — is used to optimise the acquisition decision. This goes beyond binary approve/decline:</p>
+  <ul>
+    <li><strong>Credit limit optimisation:</strong> the credit limit is a lever that affects balance ramp, default risk, and revolving income simultaneously. A higher limit increases interest income potential but also EAD. The optimal limit maximises expected P&L subject to credit risk constraints. This is typically solved by evaluating P&L over a grid of limit values and selecting the optimum per applicant segment.</li>
+    <li><strong>Pricing optimisation:</strong> APR is another lever — higher rates generate more interest but deter revolving behaviour and increase default risk (adverse selection). ML demand elasticity models estimate the APR-behaviour relationship and feed into the P&L model.</li>
+    <li><strong>Channel and offer personalisation:</strong> the acquisition channel (direct mail vs digital vs partner) and offer terms (0% introductory, cashback, rewards) affect the type of customer acquired — influencing which segment of the P&L model applies.</li>
+  </ul>
+  <pre>Acquisition decision: approve if E[Lifetime NPV(applicant)] > threshold
+                     AND credit risk limits are not breached
+                     AND fair lending constraints are satisfied
+
+Credit limit: argmax_L { E[NPV(L)] } subject to: EAD × LGD ≤ risk appetite</pre>
+
+  <h2>6. Portfolio management and P&L optimisation</h2>
+  <p>Sherwood frameworks extend beyond acquisition into <strong>in-life portfolio management</strong> — the ongoing decisions about existing customer accounts:</p>
+  <ul>
+    <li><strong>Proactive credit limit changes:</strong> increase limits for customers with high revolving utilisation and improving credit quality (more balance → more revenue); reduce limits for customers showing early delinquency signals (reducing EAD)</li>
+    <li><strong>Retention offers:</strong> for customers showing attrition signals (low usage, competitor balance transfers), the model calculates the maximum retention spend (promotional rate, fee waiver) consistent with the remaining expected lifetime NPV</li>
+    <li><strong>Collections strategy segmentation:</strong> for customers entering arrears, the Sherwood P&L lens determines the optimal collections approach — how much is it worth spending to recover a specific account, given its remaining expected P&L contribution?</li>
+    <li><strong>Forbearance analysis:</strong> for customers requesting payment deferrals, the model forecasts lifetime P&L under different forbearance scenarios — supporting decisions about whether to offer forbearance and on what terms</li>
+  </ul>
+
+  <h2>7. Regulatory and fairness dimensions</h2>
+  <p>Sherwood models carry the same fairness and regulatory obligations as any credit model:</p>
+  <ul>
+    <li><strong>Disparate impact testing:</strong> the four-fifths rule (Lesson 4) must be applied to approval rates and credit limit decisions across protected characteristics — even if the P&L model does not explicitly use protected characteristics, proxy features can create disparate impact</li>
+    <li><strong>Consumer Duty (UK) / UDAP (US):</strong> P&L-optimised offers must still represent fair value for the customer (Lesson 27). A product that is highly profitable for the bank but harmful to the customer — through high-rate revolving debt that the customer cannot sustainably manage — may fail Consumer Duty</li>
+    <li><strong>IFRS9 alignment:</strong> the credit loss component of the Sherwood model must be consistent with the IFRS9 ECL model (Lesson 12). A bank cannot have different PD estimates in its pricing model and its accounting provisioning model without documented justification (PIT vs TTC distinction applies)</li>
+    <li><strong>SR 11-7 / MRM:</strong> the Sherwood framework constitutes a material model for credit decisions. Full model risk management lifecycle (development, validation, ongoing monitoring, PSI, vintage tracking) is required</li>
+  </ul>
+
+  <div class="callout risk">
+    <div class="callout-label">The P&L optimisation trap</div>
+    A Sherwood model that perfectly optimises the bank's expected P&L can still produce bad outcomes if it (a) disproportionately targets financially vulnerable customers who are profitable but at risk of debt spiral; (b) prices in a way that disparately affects protected groups; or (c) uses the model to justify predatory credit limit increases to customers showing stress signals. UK Consumer Duty and US CFPB oversight specifically scrutinise whether profitability models have been used to target vulnerable customers. Governance frameworks must include both P&L optimisation objectives AND explicit customer outcome constraints — the model optimises within the space of outcomes that are both profitable and fair.
+  </div>
+
+  <hr>
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+    <div class="question">
+      <p>1. A credit card applicant has an excellent credit score (low PD). Why might a Sherwood model assign them a lower expected lifetime NPV than a moderate-risk applicant?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Lower PD customers are charged lower APRs, reducing revenue — but also reducing losses proportionally, so the net effect is neutral</button>
+        <button class="option" data-correct="true">Low-risk customers are likely transactors (paying in full monthly), generating minimal interest income. Revenue is primarily interchange fees and annual fee — modest. A moderate-risk customer who revolves generates significant interest income that more than offsets the higher expected loss.</button>
+        <button class="option" data-correct="false">High credit score customers have higher acquisition costs, explaining the lower NPV</button>
+        <button class="option" data-correct="false">Sherwood models assume all low-risk customers will attrite within 12 months</button>
+      </div>
+      <div class="feedback good">Correct. This is the fundamental insight that motivates profit-based underwriting. The credit card P&L is non-linear in risk: at very low risk (high score), the customer borrows safely but generates little interest income — they're "transactors" who pay in full. At very high risk, losses overwhelm any revenue. Maximum profit occurs at a middle risk level — the customer revolves a balance, pays regularly but not in full, generating interest income that more than covers expected losses at the right APR. A pure risk model would approve the low-risk customer eagerly and hesitate on the moderate-risk one; a Sherwood model may reverse this prioritisation.</div>
+      <div class="feedback bad">Credit card economics are non-monotone in credit quality. The most credit-worthy customers are often transactors: they pay their full balance monthly, generating interchange fees but zero interest income. The bank's most profitable customers carry a balance (revolvers) — they pay interest month after month, well in excess of expected credit losses at a properly-priced APR. A pure risk model maximises approval quality but misses the revenue-risk trade-off. Sherwood models capture this by modelling the revolve propensity and balance trajectory separately from the default probability — allowing credit limit and pricing decisions that optimise the complete P&L picture.</div>
+    </div>
+    <div class="question">
+      <p>2. A Sherwood model recommends increasing the credit limit for an existing customer whose utilisation has been consistently at 85% and who has never missed a payment. What is the intended P&L impact, and what risk does this create?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Higher limit increases EAD without increasing revenue — it is a risk-only action</button>
+        <button class="option" data-correct="true">The intent is to increase the revolving balance (and thus interest income) for a proven low-default-risk revolver. The risk is increased EAD on default: if circumstances change, the bank is exposed to a larger outstanding balance. The model must balance incremental revenue against incremental expected loss.</button>
+        <button class="option" data-correct="false">The limit increase is purely a customer service action with no P&L impact</button>
+        <button class="option" data-correct="false">85% utilisation indicates the customer is over-extended — Sherwood models would reduce limits in this case</button>
+      </div>
+      <div class="feedback good">Correct. 85% utilisation + clean payment history = a reliable, high-balance revolver. This customer is generating maximum interest income per pound of limit. Increasing the limit allows the balance to grow — more interest income. The model expects the customer to "ramp up" their balance into the new headroom over 3–6 months, following the balance ramp trajectory learned from similar customers. The counterparty risk is that if this customer defaults after the limit increase, EAD is larger. The Sherwood model must verify that the incremental NPV of the extra balance exceeds the incremental expected loss from higher EAD.</div>
+      <div class="feedback bad">A consistently revolving customer at 85% utilisation, never missing a payment, is one of the most profitable customer profiles: they carry a large balance, pay reliably, and have demonstrated ability to manage this level of debt. The Sherwood model identifies that giving this customer a higher limit will — based on similar customers' behaviour — lead to a higher balance, generating more interest income. The risk: higher EAD if they later default. The model's job is to verify that E[incremental revenue] > E[incremental loss] before recommending the increase. This is a risk-reward optimisation, not a credit approval — and the distinction matters for governance.</div>
+    </div>
+    <div class="question">
+      <p>3. A bank's Sherwood acquisition model and its IFRS9 PD model produce different probability of default estimates for the same applicant population. What are the legitimate reasons for this difference, and when does it become a governance problem?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Different PD estimates are never acceptable — the bank must use the same PD in all models</button>
+        <button class="option" data-correct="true">Legitimate: the Sherwood model uses a point-in-time (PIT) PD calibrated for current economic conditions over a short horizon; IFRS9 requires a through-the-cycle (TTC) PD adjusted for the full economic cycle. Governance problem: if there is no documented explanation for the difference and the models are inconsistent without justification, regulators may question the integrity of both.</button>
+        <button class="option" data-correct="false">The Sherwood model should always show a higher PD than IFRS9 — pricing must be more conservative than provisioning</button>
+        <button class="option" data-correct="false">Different PDs only matter if both models are submitted to the regulator — internal models can use any PD</button>
+      </div>
+      <div class="feedback good">Correct. PIT vs TTC is the primary legitimate reason for PD differences between acquisition models and IFRS9 models. The Sherwood acquisition model uses a PIT PD — calibrated to current economic conditions — because the pricing decision is being made today. IFRS9 uses a hybrid or TTC PD because provisioning must cover expected losses across the economic cycle (IFRS9 Stage 1 ECL uses 12-month PD; Stage 2/3 use lifetime PD). The governance requirement is documentation: the bank must be able to explain the difference to regulators, validators, and auditors without suggesting that the models are inconsistent in a problematic way. Unexplained large differences between pricing PDs and provisioning PDs are a red flag in model risk reviews.</div>
+      <div class="feedback bad">PIT PD vs TTC PD is the documented legitimate reason for acquisition vs provisioning PD differences. Sherwood acquisition pricing uses PIT PD (current conditions → pricing should reflect today's risk, not a 10-year average). IFRS9 ECL uses hybrid PD adjusted for the economic cycle (IFRS9 Stage 1 expects 12-month horizon ECL; Stage 2/3 extend this). A bank with a PIT PD of 1.5% in Sherwood and a TTC-equivalent PD of 2.5% in IFRS9 during a benign period is behaving consistently — the provisioning model is conservatively reflecting the full cycle. Without documentation, the same difference could suggest the pricing model is underestimating losses to justify a higher-NPV approval rate — which is exactly what regulators look for in model comparisons.</div>
+    </div>
+    <div class="quiz-score"></div>
+  </div>
+  <hr>
+  <h2>Primary source to read next</h2>
+  <p><strong>Cite: Calabrese, R. et al. — "Machine learning-based profit modelling for credit card underwriting: implications for credit risk" (Journal of Banking and Finance, 2023)</strong><br>
+  <a href="https://www.sciencedirect.com/science/article/abs/pii/S0378426623000213" target="_blank">ScienceDirect — ML profit modelling for credit card underwriting</a></p>
+  <p>The academic literature closest to the Sherwood methodology: profit-based (rather than pure risk-based) credit card underwriting using ML. Demonstrates that profit-optimised acquisition strategies outperform risk-only strategies on portfolio-level P&L. Pair with Federal Reserve studies on credit card profitability (<a href="https://www.federalreserve.gov/econres/notes/feds-notes/credit-card-profitability-20220909.html" target="_blank">Fed FEDS Note 2022</a>) for empirical data on the revenue-risk structure of credit card portfolios.</p>
+  <h2>Curriculum complete</h2>
+  <p>This is the final lesson in the AI/ML in Banking &amp; Finance curriculum. You have now covered:</p>
+  <ul>
+    <li>Credit risk: PD, LGD, EAD, credit scoring, IFRS9, CCR/XVA (Lessons 1–4, 12–13)</li>
+    <li>Market risk: VaR/ES, FRTB, algo trading, CCAR (Lessons 5–8)</li>
+    <li>Financial crime: fraud, AML (Lessons 9–10)</li>
+    <li>Revenue models: listwise MLE, Sherwood (Lessons 11, 28)</li>
+    <li>Balance sheet risk: IRRBB, liquidity, economic capital (Lessons 14–15, 17)</li>
+    <li>Macro/strategic risk: climate risk, asset management, capital markets, insurance, pensions, cyber, recovery (Lessons 16, 18–23)</li>
+    <li>Operational: treasury, HR, securities services, compliance (Lessons 24–27)</li>
+  </ul>
+  <ul>
+    <li><a href="0027-regulatory-compliance-risk.html">← Lesson 27: Regulatory Compliance Risk</a></li>
+    <li><a href="../NOTES.md">Curriculum Map</a></li>
+  </ul>
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — profit-based underwriting vs risk-based, credit limit optimisation, or the regulatory governance of pricing models are all worth discussing further.</p>
+    <p style="margin-top:.5rem;">Lesson 28 · <em>AI/ML in Banking &amp; Finance</em> · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

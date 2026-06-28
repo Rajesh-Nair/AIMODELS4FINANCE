@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 18: Asset Management &amp; Investment Models</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<div class="page">
+  <div class="lesson-meta">Lesson 18 · Asset Management</div>
+  <h1>Asset Management &amp; Investment Models</h1>
+  <p class="subtitle">From factor models to ML alpha — how the buy side uses ML differently from the sell-side trading desk, and why interpretability matters more for institutional investors.</p>
+
+  <h2>1. The buy-side vs sell-side distinction</h2>
+  <p>Asset management (buy side) differs from algorithmic trading on a sell-side desk (Lesson 7) in several ways that affect model design:</p>
+  <table>
+    <thead><tr><th></th><th>Sell-side algo trading (Lesson 7)</th><th>Buy-side asset management</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Horizon</strong></td><td>Intraday to days</td><td>Weeks to years</td></tr>
+      <tr><td><strong>Portfolio size</strong></td><td>Hundreds of positions, high turnover</td><td>Tens to hundreds of positions, low turnover</td></tr>
+      <tr><td><strong>Alpha source</strong></td><td>Microstructure, short-term momentum</td><td>Fundamental value, factor premia, alternative data</td></tr>
+      <tr><td><strong>Benchmark</strong></td><td>Sharpe ratio, IC</td><td>Information ratio vs benchmark (e.g., S&amp;P 500)</td></tr>
+      <tr><td><strong>Regulation</strong></td><td>Market risk / MiFID</td><td>MiFID II, UCITS, AIFMD, MRM for internal models</td></tr>
+    </tbody>
+  </table>
+
+  <h2>2. Factor models — the foundation</h2>
+  <p>Asset management rests on <strong>factor models</strong>: the idea that security returns are driven by a small set of common risk factors. The canonical multi-factor model:</p>
+  <pre>R_i = α_i + Σⱼ β_{ij} × F_j + ε_i
+
+where: R_i = return of asset i
+       F_j = return of factor j (market, value, momentum, etc.)
+       β_ij = asset i's exposure to factor j
+       α_i  = idiosyncratic return (the "alpha")</pre>
+  <p>Classic factor families (Fama-French, Carhart, AQR): market beta, size (small vs large cap), value (high vs low book-to-market), momentum (12-1 month return), quality (profitability, investment conservatism), low volatility.</p>
+  <p>ML's role in factor models is three-fold: (1) identifying new factors from large datasets, (2) estimating factor exposures non-linearly, and (3) building dynamic factor models where exposures and factor premia shift over time.</p>
+
+  <h2>3. Portfolio optimisation — beyond Markowitz</h2>
+  <p>The classical Markowitz mean-variance optimiser finds the portfolio with maximum expected return for a given level of risk. Its practical failure: expected returns are very hard to estimate, and small errors in inputs produce large portfolio weight changes ("garbage in, garbage out").</p>
+  <p>ML improvements to portfolio optimisation:</p>
+  <ul>
+    <li><strong>Black-Litterman with ML views:</strong> the BL model combines market equilibrium returns with analyst views. ML models (XGBoost on fundamental data) generate the "views" — improving return estimates while preserving the portfolio's stability through BL's Bayesian blending.</li>
+    <li><strong>Hierarchical Risk Parity (HRP):</strong> uses hierarchical clustering on the correlation matrix to group similar assets, then allocates risk equally across clusters. Avoids the matrix inversion in Markowitz that amplifies estimation error. Robust to correlation estimation noise.</li>
+    <li><strong>Deep Reinforcement Learning for portfolio allocation:</strong> RL agent learns a policy mapping market state to portfolio weights, trained to maximise risk-adjusted return. Research-stage at most managers but deployed at some quant hedge funds.</li>
+  </ul>
+
+  <h2>4. Alternative data in buy-side ML</h2>
+  <p>Asset managers use many of the same alternative data sources as algo trading desks (Lesson 7) but at longer horizons and with deeper fundamental analysis:</p>
+  <table>
+    <thead><tr><th>Data source</th><th>Signal extracted</th><th>ML technique</th></tr></thead>
+    <tbody>
+      <tr><td>Earnings call transcripts</td><td>Management tone, confidence, linguistic uncertainty signals</td><td>Transformer-based NLP (FinBERT, domain-fine-tuned BERT); sentiment scoring</td></tr>
+      <tr><td>Satellite imagery</td><td>Retail store traffic, factory activity, agricultural yields, energy demand</td><td>Computer vision (CNN) on satellite image sequences; change detection</td></tr>
+      <tr><td>Credit card transaction aggregates</td><td>Consumer spending by sector, company revenue proxies</td><td>Time-series regression; XGBoost for revenue surprise prediction</td></tr>
+      <tr><td>Patent filings</td><td>Innovation pipeline; R&amp;D productivity proxies</td><td>NLP on patent text; citation network analysis</td></tr>
+      <tr><td>Job postings</td><td>Company headcount trends, skill investment signals</td><td>NLP on job ad text; trend analysis</td></tr>
+    </tbody>
+  </table>
+
+  <h2>5. ESG integration and ML</h2>
+  <p>ESG (Environmental, Social, Governance) scoring has become central to asset management — both for regulation (EU SFDR, Article 8/9 fund classification) and client demand. ML applications:</p>
+  <ul>
+    <li><strong>ESG data aggregation:</strong> different rating agencies (MSCI, Sustainalytics, ISS) produce widely diverging ESG scores for the same company. ML combines multiple sources and raw ESG data (emissions disclosures, controversies, governance data) into a more stable composite score.</li>
+    <li><strong>Controversy detection:</strong> NLP on news feeds and NGO reports to detect ESG controversies before they appear in formal ratings — a leading indicator of rating downgrades and stock underperformance.</li>
+    <li><strong>Greenwashing detection:</strong> NLP models comparing a company's ESG claims in sustainability reports against actual emissions and governance data — flagging discrepancies.</li>
+  </ul>
+
+  <h2>6. Robo-advisory models</h2>
+  <p><strong>Robo-advisors</strong> automate the investment planning and portfolio construction process for retail clients, using ML models to personalise asset allocation at scale:</p>
+  <ul>
+    <li><strong>Risk profiling:</strong> ML classifiers mapping client questionnaire responses (age, income, investment goals, loss tolerance) to a risk appetite category, then to a model portfolio</li>
+    <li><strong>Goal-based optimisation:</strong> stochastic simulations of future portfolio outcomes under different allocation strategies, optimising the probability of meeting a client goal (e.g., retirement at 65 with £1m)</li>
+    <li><strong>Rebalancing triggers:</strong> ML models determining when drift from target allocation warrants a rebalance, balancing transaction cost against drift risk</li>
+  </ul>
+  <div class="callout risk">
+    <div class="callout-label">MRM and fiduciary duty</div>
+    Asset management ML models are subject to MRM principles but also face fiduciary duty (acting in the client's best interest) and regulatory requirements under MiFID II (suitability, appropriateness). A model that maximises Sharpe ratio but produces unsuitable products for clients (e.g., a high-risk quant strategy sold to risk-averse retirees) faces regulatory and civil liability. Model governance must include client suitability testing — not just statistical back-testing.
+  </div>
+
+  <hr>
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+    <div class="question">
+      <p>1. What is the primary practical failure of classical Markowitz mean-variance optimisation?</p>
+      <div class="options">
+        <button class="option" data-correct="false">It cannot handle more than 50 assets simultaneously</button>
+        <button class="option" data-correct="true">Small errors in expected return estimates produce large, unstable changes in optimal portfolio weights</button>
+        <button class="option" data-correct="false">It assumes zero transaction costs, which is never true in practice</button>
+        <button class="option" data-correct="false">It requires daily rebalancing, making it impractical for long-horizon investors</button>
+      </div>
+      <div class="feedback good">Correct. Markowitz optimisation is extremely sensitive to the expected return inputs — a 0.1% change in expected return can move weights dramatically. Since expected returns are notoriously hard to estimate, the output is often dominated by estimation error rather than genuine insight. Black-Litterman and HRP both address this brittleness through Bayesian blending and correlation-aware allocation respectively.</div>
+      <div class="feedback bad">The "garbage in, garbage out" problem: mean-variance optimisation is highly sensitive to expected return estimates. Small estimation errors — inevitable when forecasting returns — produce large swings in optimal weights. The result is often concentrated, unstable portfolios that look optimal in-sample but perform poorly out-of-sample. Black-Litterman addresses this through Bayesian shrinkage toward equilibrium; HRP avoids the problem by not using expected returns at all.</div>
+    </div>
+    <div class="question">
+      <p>2. FinBERT or domain-fine-tuned BERT is applied to earnings call transcripts. What signal is being extracted?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Exact revenue and profit figures announced during the call</button>
+        <button class="option" data-correct="true">Management tone, linguistic uncertainty, and sentiment signals that predict stock performance beyond what the reported numbers capture</button>
+        <button class="option" data-correct="false">The number of analysts who asked questions, as a proxy for market interest</button>
+        <button class="option" data-correct="false">Whether the CEO or CFO was the primary speaker during the call</button>
+      </div>
+      <div class="feedback good">Correct. The numerical financial results in earnings calls are already priced rapidly. The linguistic signals — uncertainty hedges ("it's hard to say", "we expect"), positive vs negative tone, management confidence in guidance — contain additional information about future performance that the numbers alone do not capture. NLP models extract these signals consistently across thousands of companies and quarters.</div>
+      <div class="feedback bad">Financial numbers from earnings calls are priced within seconds. The alpha in NLP on earnings calls comes from the language: management's tone, linguistic hedging, confidence signals, and the specific topics they choose to emphasise or avoid. These subtle signals contain predictive information about future earnings surprises and stock performance that the headline numbers don't convey.</div>
+    </div>
+    <div class="question">
+      <p>3. Under EU SFDR, why does ESG model quality matter for asset managers?</p>
+      <div class="options">
+        <button class="option" data-correct="false">SFDR requires all funds to achieve a minimum ESG score</button>
+        <button class="option" data-correct="true">Article 8/9 fund classifications require demonstrable ESG integration methodology — greenwashing claims backed by weak models attract regulatory enforcement</button>
+        <button class="option" data-correct="false">ESG model errors trigger automatic fund reclassification to Article 6</button>
+        <button class="option" data-correct="false">SFDR mandates that ESG scores are calculated using EU-approved algorithms only</button>
+      </div>
+      <div class="feedback good">Correct. SFDR Article 8 (promotes ESG characteristics) and Article 9 (sustainable investment objective) funds must document their ESG methodology. A fund marketing itself as Article 9 while using superficial or inconsistent ESG criteria faces FCA/ESMA enforcement for greenwashing. The ESG model is therefore a regulatory compliance artefact — not just an investment tool.</div>
+      <div class="feedback bad">SFDR creates a disclosure and methodology requirement. Article 8 and 9 funds must demonstrate ESG integration — not just claim it. Regulators (FCA in the UK with SDR, ESMA in the EU) are actively investigating greenwashing claims. A fund with weak or inconsistent ESG scoring methodology backing an Article 9 classification faces fund reclassification, fines, and reputational damage. ESG model governance is therefore a compliance requirement, not just an investment choice.</div>
+    </div>
+    <div class="quiz-score"></div>
+  </div>
+  <hr>
+  <h2>Primary source to read next</h2>
+  <p><strong>López de Prado — "Machine Learning for Asset Managers" (Cambridge, 2020)</strong><br>
+  <a href="https://www.cambridge.org/core/books/machine-learning-for-asset-managers/6D9211305EA2E425D33A9F38D0AE3545" target="_blank">cambridge.org — ML for Asset Managers</a></p>
+  <p>Focused specifically on the buy-side. Covers HRP, feature engineering for long-horizon signals, and the combinatorial purged cross-validation framework applied to longer-horizon asset management backtests. Dense but highly practical.</p>
+  <h2>What comes next</h2>
+  <ul>
+    <li><a href="0017-economic-capital.html">← Lesson 17: Economic Capital</a></li>
+    <li><a href="0019-capital-markets-pricing.html">Lesson 19: Capital Markets Product Pricing →</a></li>
+  </ul>
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — Black-Litterman vs HRP, FinBERT signal construction, or SFDR ESG methodology requirements are all worth discussing further.</p>
+    <p style="margin-top:.5rem;">Lesson 18 · <em>AI/ML in Banking &amp; Finance</em> · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

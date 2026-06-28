@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 5: VaR &amp; ES — Fat Tails and ML</title>
+<link rel="stylesheet" href="../assets/styles.css">
+<style>
+  .dist-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin: 1.5rem 0;
+  }
+  .dist-panel {
+    background: var(--neutral);
+    border: 1px solid var(--rule);
+    border-radius: 5px;
+    padding: 0.8rem;
+    text-align: center;
+  }
+  .dist-panel canvas { display: block; margin: 0 auto; }
+  .dist-panel p { font-family: var(--font-sans); font-size: 0.78rem; color: var(--muted); margin-top: 0.4rem; margin-bottom: 0; }
+  .approach-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0.5rem 0;
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+  }
+  .approach-label { min-width: 200px; font-weight: 600; }
+  .approach-track { flex: 1; background: var(--rule); height: 10px; border-radius: 5px; }
+  .approach-fill { height: 10px; border-radius: 5px; background: var(--accent); }
+  .approach-fill.warn { background: var(--warn); }
+  .approach-fill.mid  { background: #8b6914; }
+  @media (max-width: 560px) { .dist-row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="lesson-meta">Lesson 05 · Market Risk</div>
+  <h1>VaR &amp; ES: Fat Tails and ML</h1>
+  <p class="subtitle">
+    Why parametric approaches systematically underestimate tail risk — and how ML fills the gap.
+  </p>
+
+  <!-- 1 -->
+  <h2>1. What VaR and ES measure</h2>
+
+  <p>
+    Market risk asks: <em>how much could this portfolio lose over a given horizon at a given confidence level?</em>
+    Two measures dominate:
+  </p>
+
+  <table>
+    <thead>
+      <tr><th>Measure</th><th>Definition</th><th>Regulatory use</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>VaR (Value at Risk)</strong></td>
+        <td>The loss that will not be exceeded with probability <em>c</em> over horizon <em>h</em>. At 99% confidence / 10-day horizon: there is a 1% chance of losing more than VaR.</td>
+        <td>Basel II / 2.5 internal model capital charge. Now superseded under FRTB but still widely used for internal limits.</td>
+      </tr>
+      <tr>
+        <td><strong>ES (Expected Shortfall)</strong></td>
+        <td>The expected loss <em>given that</em> the loss exceeds VaR. Averages the tail beyond the confidence level. Also called CVaR (Conditional VaR).</td>
+        <td>FRTB (Basel III / IV): replaces VaR as the primary capital measure. ES at 97.5% replaces VaR at 99%.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>
+    The key difference: VaR tells you the threshold you'll breach 1% of days. ES tells you the
+    <em>average</em> loss on those bad days. ES is sub-additive (rewards diversification) and captures
+    the shape of the tail — making it a better measure of capital adequacy.
+  </p>
+
+  <!-- 2 -->
+  <h2>2. Why the normal distribution assumption fails</h2>
+
+  <p>
+    Parametric VaR assumes returns are normally distributed. This is violated in financial markets
+    in two systematic ways:
+  </p>
+
+  <div class="dist-row">
+    <div class="dist-panel">
+      <canvas id="fatTailChart" width="280" height="160"></canvas>
+      <p><strong>Fat tails (leptokurtosis):</strong> Actual return distributions have more mass in the extremes than the normal. Extreme losses happen 5–10× more often than the normal distribution predicts.</p>
+    </div>
+    <div class="dist-panel">
+      <canvas id="volClusterChart" width="280" height="160"></canvas>
+      <p><strong>Volatility clustering:</strong> Calm periods cluster with calm periods; turbulent periods cluster with turbulent. Large losses on consecutive days violate the IID assumption.</p>
+    </div>
+  </div>
+
+  <p>
+    The 2008 financial crisis made this concrete. Many banks using parametric VaR experienced
+    losses that were nominally "25-sigma events" — events the normal model said should occur
+    once in billions of years. They occurred on consecutive trading days. The failure was not
+    bad luck; it was a wrong model.
+  </p>
+
+  <div class="callout risk">
+    <div class="callout-label">What parametric VaR gets wrong</div>
+    At 99% confidence, normal-distribution VaR underestimates tail losses by 30–60% for typical
+    equity portfolios and by far more for options books and credit portfolios. The fatter and more
+    skewed the actual return distribution, the larger the underestimate.
+  </div>
+
+  <!-- 3 -->
+  <h2>3. The three VaR methodologies — before ML</h2>
+
+  <h3>Parametric (variance-covariance) VaR</h3>
+  <p>
+    Assumes normally distributed returns. VaR = μ − z<sub>α</sub> × σ × √h, where z<sub>α</sub> is
+    the normal quantile. Fast to compute; wrong for fat tails and non-linear portfolios (options).
+  </p>
+
+  <h3>Historical simulation (HS)</h3>
+  <p>
+    Replays actual historical P&amp;L scenarios from a lookback window (typically 250–500 days).
+    VaR = the empirical quantile of the P&amp;L distribution. No distribution assumption — the
+    fat tails are captured automatically from history. Limitation: only as good as the history.
+    If a scenario hasn't appeared in the lookback window, the model is blind to it.
+  </p>
+
+  <h3>Monte Carlo simulation</h3>
+  <p>
+    Generates thousands of synthetic return paths from an assumed multivariate distribution.
+    Flexible but expensive; dependent on how the distributional assumptions are specified.
+  </p>
+
+  <div class="approach-bar"><span class="approach-label">Parametric</span><div class="approach-track"><div class="approach-fill warn" style="width:30%"></div></div><span style="font-family:var(--font-sans);font-size:0.8rem;color:var(--muted)">Poor tail accuracy</span></div>
+  <div class="approach-bar"><span class="approach-label">Historical simulation</span><div class="approach-track"><div class="approach-fill mid" style="width:60%"></div></div><span style="font-family:var(--font-sans);font-size:0.8rem;color:var(--muted)">Good; limited by lookback</span></div>
+  <div class="approach-bar"><span class="approach-label">GARCH + HS (filtered)</span><div class="approach-track"><div class="approach-fill" style="width:80%"></div></div><span style="font-family:var(--font-sans);font-size:0.8rem;color:var(--muted)">Better; volatility-adjusted</span></div>
+  <div class="approach-bar"><span class="approach-label">GARCH-ML / NN quantile</span><div class="approach-track"><div class="approach-fill" style="width:90%"></div></div><span style="font-family:var(--font-sans);font-size:0.8rem;color:var(--muted)">Best tail accuracy on test data</span></div>
+
+  <!-- 4 -->
+  <h2>4. GARCH: capturing volatility clustering</h2>
+
+  <p>
+    GARCH (Generalised AutoRegressive Conditional Heteroskedasticity) models time-varying volatility
+    directly. The GARCH(1,1) specification is the workhorse:
+  </p>
+
+  <pre>σ²_t = ω  +  α × ε²_{t-1}  +  β × σ²_{t-1}
+
+where:
+  σ²_t   = conditional variance at time t
+  ε_{t-1} = yesterday's return shock
+  α      = reaction to shocks (ARCH term)
+  β      = persistence of volatility (GARCH term)
+  α + β  &lt; 1 for stationarity (typically 0.97–0.99)</pre>
+
+  <p>
+    <strong>Filtered Historical Simulation (FHS)</strong> combines GARCH with HS: standardise historical
+    returns by their GARCH-estimated volatility (z<sub>t</sub> = ε<sub>t</sub> / σ<sub>t</sub>),
+    giving IID standardised residuals. Then scale the simulated residuals by the <em>current</em>
+    GARCH volatility forecast to generate tomorrow's distribution. This preserves real-tail structure
+    while conditioning on today's volatility regime.
+  </p>
+
+  <!-- 5 -->
+  <h2>5. Where ML enters market risk</h2>
+
+  <h3>GARCH-ML hybrids: replacing the volatility equation</h3>
+  <p>
+    The GARCH(1,1) volatility equation uses only two lagged inputs. ML models — in particular
+    LSTMs and gradient boosted trees — can take dozens of inputs: realised volatility measures,
+    options-implied volatility (VIX), macro variables, cross-asset signals. This consistently
+    outperforms GARCH on out-of-sample volatility forecasting in equity and FX markets.
+  </p>
+
+  <pre>σ²_t  ← ML(σ²_{t-1}, ..., σ²_{t-p},
+              realised_vol, VIX, macro_features, ...)</pre>
+
+  <h3>Neural network quantile regression</h3>
+  <p>
+    Rather than modelling the full distribution and deriving quantiles, train a neural network
+    directly to predict the α-quantile of losses (the VaR) using a <strong>pinball loss function</strong>:
+  </p>
+
+  <pre>L(q, y, ŷ) = q × (y − ŷ)    if y &gt; ŷ  (underestimate)
+             = (1 − q) × (ŷ − y)  if y ≤ ŷ  (overestimate)
+
+Minimising pinball loss at q = 0.99 → direct VaR estimate</pre>
+
+  <p>
+    Advantages: no distributional assumption; can model asymmetric tails; can include
+    rich feature sets. Limitation: the output is a single quantile, not a full distribution
+    — ES requires additional modelling of the region beyond the VaR threshold.
+  </p>
+
+  <h3>Deep learning for full distribution estimation</h3>
+  <p>
+    <strong>Normalising flows</strong> and <strong>conditional GANs</strong> can learn the full
+    conditional return distribution given a feature set. These are research-stage in most banks
+    but appear in advanced market risk groups at large dealer banks. The output is a synthetic
+    P&amp;L distribution that can be used for both VaR and ES at any confidence level.
+  </p>
+
+  <!-- 6 -->
+  <h2>6. FRTB context: why ES replaced VaR</h2>
+
+  <p>
+    The <a href="https://www.bis.org/bcbs/publ/d457.htm" target="_blank">FRTB (Fundamental Review
+    of the Trading Book)</a>, finalised by Basel in 2019, replaced VaR with ES as the primary
+    capital measure under the Internal Models Approach (IMA). Three reasons:
+  </p>
+
+  <ul>
+    <li>
+      <strong>VaR is not sub-additive</strong> — it can suggest that the risk of a combined portfolio
+      exceeds the sum of its parts, which is irrational. ES is sub-additive and therefore correctly
+      rewards diversification.
+    </li>
+    <li>
+      <strong>VaR ignores the tail beyond the threshold</strong> — two portfolios with identical VaR
+      can have wildly different ES (one has a moderate tail; one a catastrophic tail). ES discriminates
+      between them.
+    </li>
+    <li>
+      <strong>2008 demonstrated VaR's failure</strong> — the crisis produced losses far exceeding
+      99% VaR on consecutive days. Regulators concluded the measure was inadequate for capital purposes.
+    </li>
+  </ul>
+
+  <div class="callout info">
+    <div class="callout-label">The FRTB numbers</div>
+    FRTB IMA uses ES at 97.5% over a 10-day horizon (using a 12-month historical lookback for the
+    stress period). This is broadly equivalent to VaR at 99%, but with the tail properly measured.
+    Banks must also pass a P&amp;L attribution test and backtesting requirements before IMA approval
+    is granted — and must use stressed market data from a period of financial turmoil.
+  </div>
+
+  <!-- 7 -->
+  <h2>7. Backtesting VaR — and why it matters for governance</h2>
+
+  <p>
+    <strong>Backtesting</strong> compares realised daily P&amp;L against model VaR estimates. A
+    99% VaR model should be breached on approximately 2–3 days per year (1% of 250 trading days).
+    Too many breaches means the model underestimates risk; too few may mean it is overly conservative
+    (and over-capitalised).
+  </p>
+
+  <table>
+    <thead>
+      <tr><th>Exceptions in 250 days</th><th>Basel zone</th><th>Implication</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>0–4</td><td>Green</td><td>Model acceptable; no capital multiplier</td></tr>
+      <tr><td>5–9</td><td>Yellow</td><td>Model under scrutiny; capital multiplier applied (k = 3.4–3.85)</td></tr>
+      <tr><td>10+</td><td>Red</td><td>Model rejected for IMA; forced to standardised approach</td></tr>
+    </tbody>
+  </table>
+
+  <p>
+    For ML-based VaR models, validators must demonstrate that the backtesting record is sound
+    <em>not just in the training period but in out-of-sample and stress periods</em>. A model
+    that backtests well in benign conditions but produces excess exceptions in 2008-equivalent
+    scenarios will not receive regulatory approval.
+  </p>
+
+  <hr>
+
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+
+    <div class="question">
+      <p>1. A portfolio's 1-day 99% VaR is £1m. What does this mean precisely?</p>
+      <div class="options">
+        <button class="option" data-correct="false">The portfolio will lose exactly £1m tomorrow</button>
+        <button class="option" data-correct="false">The average daily loss is £1m</button>
+        <button class="option" data-correct="true">There is a 1% chance of losing more than £1m in a single day</button>
+        <button class="option" data-correct="false">The maximum possible loss is £1m</button>
+      </div>
+      <div class="feedback good">Correct. VaR is a threshold, not a prediction of the specific loss. There is a 1% probability that tomorrow's loss will exceed £1m — and no information about how much larger it might be if that 1% event occurs. That gap is what ES addresses.</div>
+      <div class="feedback bad">VaR is a quantile, not an expected or maximum value. 99% VaR of £1m means: on 1% of trading days (≈2–3 per year), the loss will exceed £1m. The size of loss on those days is not captured by VaR — that is what ES measures.</div>
+    </div>
+
+    <div class="question">
+      <p>2. What is the key advantage of Expected Shortfall (ES) over VaR for capital calculation?</p>
+      <div class="options">
+        <button class="option" data-correct="false">ES is faster to compute than VaR</button>
+        <button class="option" data-correct="true">ES captures the average loss in the tail beyond VaR, measuring tail severity rather than just the threshold</button>
+        <button class="option" data-correct="false">ES assumes normally distributed returns, making it more mathematically tractable</button>
+        <button class="option" data-correct="false">ES is always lower than VaR, requiring less capital</button>
+      </div>
+      <div class="feedback good">Correct. ES = E[Loss | Loss > VaR]. It averages the losses in the tail, so two portfolios with identical VaR but different tail shapes (one moderate, one catastrophic) will have different ES. ES also satisfies sub-additivity — it always rewards diversification — which VaR does not.</div>
+      <div class="feedback bad">ES captures tail severity. Two portfolios with identical VaR can have very different ES if their tails behave differently. ES also satisfies sub-additivity (a mathematical coherence property VaR lacks), meaning it always gives credit for diversification. These are the reasons FRTB replaced VaR with ES.</div>
+    </div>
+
+    <div class="question">
+      <p>3. In GARCH(1,1), what does the ARCH term α measure?</p>
+      <div class="options">
+        <button class="option" data-correct="false">The long-run average volatility (unconditional variance)</button>
+        <button class="option" data-correct="false">The persistence of past volatility estimates</button>
+        <button class="option" data-correct="true">How strongly today's volatility reacts to yesterday's return shock</button>
+        <button class="option" data-correct="false">The correlation between returns across assets</button>
+      </div>
+      <div class="feedback good">Correct. α is the ARCH coefficient — it measures how much a large return shock (ε²_{t-1}) feeds into today's variance estimate. High α means volatility reacts sharply to news. β is the persistence term — how much of yesterday's variance estimate carries forward. Together α + β measures how long volatility shocks decay.</div>
+      <div class="feedback bad">In GARCH(1,1): σ²_t = ω + α × ε²_{t-1} + β × σ²_{t-1}. α is the ARCH (reaction) term — it scales how much last period's squared return shock feeds into today's variance. β is the GARCH (persistence) term — it scales how much of yesterday's variance estimate carries over. α + β must be &lt; 1 for the model to be stationary.</div>
+    </div>
+
+    <div class="question">
+      <p>4. Under FRTB, what replaces 99% VaR as the primary capital measure?</p>
+      <div class="options">
+        <button class="option" data-correct="false">95% VaR with a 20-day horizon</button>
+        <button class="option" data-correct="false">99.9% VaR with a 1-day horizon</button>
+        <button class="option" data-correct="true">97.5% Expected Shortfall with a 10-day horizon</button>
+        <button class="option" data-correct="false">99% Expected Shortfall with a 1-day horizon</button>
+      </div>
+      <div class="feedback good">Correct. FRTB IMA uses ES at 97.5% over a 10-day horizon. The 97.5% ES is broadly calibrated to be comparable with 99% VaR in terms of capital impact, but now properly measures the tail severity that VaR ignores.</div>
+      <div class="feedback bad">FRTB uses ES at 97.5%, 10-day horizon. The confidence level is lower than the old VaR threshold (99%) because ES at 97.5% captures more tail mass than VaR at 99% — they are roughly equivalent in capital terms while ES is a more coherent and informative risk measure.</div>
+    </div>
+
+    <div class="question">
+      <p>5. A 99% VaR model produces 12 backtesting exceptions in a 250-day window. What is the regulatory consequence under Basel?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Green zone — model is approved with no penalty</button>
+        <button class="option" data-correct="false">Yellow zone — capital multiplier applied but model retained</button>
+        <button class="option" data-correct="true">Red zone — model rejected; bank reverts to standardised approach</button>
+        <button class="option" data-correct="false">Model is suspended pending a 90-day review period</button>
+      </div>
+      <div class="feedback good">Correct. 10+ exceptions in 250 days puts the model in the red zone. The regulator withdraws IMA approval and the bank must use the (typically more capital-intensive) Standardised Approach. This creates a strong incentive to maintain model quality and avoid model failure in stressed periods.</div>
+      <div class="feedback bad">12 exceptions &gt; 10 = red zone. IMA approval is revoked. The bank must use the Standardised Approach, which is typically more punitive on capital. This regulatory consequence makes VaR backtesting a critical governance metric — model failures in stressed periods are very expensive.</div>
+    </div>
+
+    <div class="quiz-score"></div>
+  </div>
+
+  <hr>
+
+  <h2>Primary source to read next</h2>
+  <p>
+    <strong>BCBS: "Fundamental Review of the Trading Book — Final Standard" (2019)</strong><br>
+    <a href="https://www.bis.org/bcbs/publ/d457.htm" target="_blank">bis.org/bcbs/publ/d457.htm</a>
+  </p>
+  <p>
+    The primary source for FRTB. Focus on Section 3 (IMA — Internal Models Approach) and the
+    backtesting requirements in Annex B. Compact for a Basel document (~100 pages relevant to IMA).
+    Pair with a Risk.net article on GARCH-ML hybrids for practical context.
+  </p>
+
+  <h2>What comes next</h2>
+  <p>
+    Lesson 6 covers <strong>FRTB and Non-Modellable Risk Factors (NMRF)</strong> — what happens when
+    market data is too sparse for statistical modelling, and how ML imputation techniques leverage
+    cross-asset relationships to fill the gap.
+  </p>
+  <ul>
+    <li><a href="0004-credit-scoring-alt-data.html">← Lesson 4: Credit Scoring</a></li>
+    <li><a href="0006-frtb-nmrf.html">Lesson 6: FRTB &amp; NMRF →</a></li>
+  </ul>
+
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — the GARCH(1,1) specification, the ES vs VaR distinction, or the FRTB backtesting zones are all worth exploring further in the chat.</p>
+    <p style="margin-top:0.5rem;">Lesson 5 of the <em>AI/ML in Banking &amp; Finance</em> course · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+
+</div>
+
+<script>
+/* Fat tails diagram */
+(function () {
+  function drawDistChart(id, label, showFatTail) {
+    var canvas = document.getElementById(id);
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var W = canvas.width, H = canvas.height;
+    var pad = { left: 10, right: 10, top: 16, bottom: 20 };
+    var cW = W - pad.left - pad.right;
+    var cH = H - pad.top - pad.bottom;
+
+    ctx.fillStyle = '#f5f5f0';
+    ctx.fillRect(0, 0, W, H);
+
+    var steps = 300;
+    function normal(x, mu, sigma) {
+      return Math.exp(-0.5 * Math.pow((x - mu) / sigma, 2)) / (sigma * Math.sqrt(2 * Math.PI));
+    }
+    function fatTail(x) {
+      var core = normal(x, 0, 1) * 0.85;
+      var tail = 0.06 * Math.exp(-Math.abs(x) * 1.2);
+      return core + tail;
+    }
+
+    var xMin = -4, xMax = 4;
+    var points = [];
+    var maxD = 0;
+    for (var i = 0; i <= steps; i++) {
+      var xVal = xMin + (i / steps) * (xMax - xMin);
+      var d = showFatTail ? fatTail(xVal) : normal(xVal, 0, 1);
+      if (d > maxD) maxD = d;
+      points.push({ x: xVal, d: d });
+    }
+
+    var xToP = function (x) { return pad.left + ((x - xMin) / (xMax - xMin)) * cW; };
+    var dToP = function (d) { return pad.top + cH - (d / maxD) * cH * 0.9; };
+
+    /* Normal reference line */
+    if (showFatTail) {
+      ctx.beginPath();
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = '#aaa';
+      ctx.lineWidth = 1;
+      for (var j = 0; j <= steps; j++) {
+        var xv = xMin + (j / steps) * (xMax - xMin);
+        var dv = normal(xv, 0, 1);
+        var px = xToP(xv), py = dToP(dv);
+        if (j === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    /* Fill */
+    ctx.beginPath();
+    points.forEach(function (p, i) {
+      var px = xToP(p.x), py = dToP(p.d);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    });
+    ctx.lineTo(xToP(xMax), pad.top + cH);
+    ctx.lineTo(xToP(xMin), pad.top + cH);
+    ctx.closePath();
+    ctx.fillStyle = showFatTail ? 'rgba(139, 26, 26, 0.12)' : 'rgba(26, 77, 143, 0.12)';
+    ctx.fill();
+    ctx.strokeStyle = showFatTail ? '#8b1a1a' : '#1a4d8f';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    points.forEach(function (p, i) {
+      var px = xToP(p.x), py = dToP(p.d);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    });
+    ctx.stroke();
+
+    /* Title */
+    ctx.fillStyle = showFatTail ? '#8b1a1a' : '#1a4d8f';
+    ctx.font = 'bold 10px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, W / 2, pad.top - 2);
+
+    /* Axis line */
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, pad.top + cH);
+    ctx.lineTo(pad.left + cW, pad.top + cH);
+    ctx.stroke();
+
+    if (showFatTail) {
+      ctx.fillStyle = '#8b1a1a';
+      ctx.font = '9px system-ui, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('← fatter tail', xToP(-3.5), dToP(0.01) - 5);
+      ctx.textAlign = 'right';
+      ctx.fillText('fatter tail →', xToP(3.5), dToP(0.01) - 5);
+    }
+  }
+
+  drawDistChart('fatTailChart', 'Actual vs Normal (dashed)', true);
+  drawDistChart('volClusterChart', 'Volatility over time (stylised)', false);
+
+  /* Override second canvas with vol clustering time series */
+  (function () {
+    var canvas = document.getElementById('volClusterChart');
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#f5f5f0';
+    ctx.fillRect(0, 0, W, H);
+
+    var pad = { left: 10, right: 10, top: 20, bottom: 20 };
+    var cW = W - pad.left - pad.right;
+    var cH = H - pad.top - pad.bottom;
+
+    ctx.fillStyle = '#1a4d8f';
+    ctx.font = 'bold 10px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Volatility clustering (stylised)', W / 2, pad.top - 4);
+
+    var T = 120;
+    var vols = [];
+    var v = 0.01;
+    for (var t = 0; t < T; t++) {
+      /* Simulate clustering: low vol regime then shock then high vol then decay */
+      if (t < 40) v = 0.008 + 0.003 * Math.sin(t * 0.3) + Math.random() * 0.002;
+      else if (t === 40) v = 0.055;
+      else if (t < 70) v = v * 0.88 + 0.005 + Math.random() * 0.006;
+      else v = 0.007 + 0.002 * Math.sin(t * 0.25) + Math.random() * 0.002;
+      vols.push(Math.max(0.005, v));
+    }
+
+    var maxV = Math.max.apply(null, vols);
+    ctx.beginPath();
+    vols.forEach(function (vol, i) {
+      var px = pad.left + (i / (T - 1)) * cW;
+      var py = pad.top + cH - (vol / maxV) * cH * 0.9;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    });
+    ctx.strokeStyle = '#1a4d8f';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    /* Axis */
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, pad.top + cH);
+    ctx.lineTo(pad.left + cW, pad.top + cH);
+    ctx.stroke();
+
+    /* Annotation */
+    ctx.fillStyle = '#8b1a1a';
+    ctx.font = '9px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('shock', pad.left + (40 / T) * cW, pad.top + 8);
+    ctx.fillText('calm', pad.left + (20 / T) * cW, pad.top + cH * 0.4);
+    ctx.fillText('calm', pad.left + (90 / T) * cW, pad.top + cH * 0.4);
+  })();
+})();
+</script>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

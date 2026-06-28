@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 23: Recovery Asset Models</title>
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+<div class="page">
+  <div class="lesson-meta">Lesson 23 · Credit Recovery</div>
+  <h1>Recovery Asset Models</h1>
+  <p class="subtitle">What happens after default — NPL portfolio management, workout strategy optimisation, and the ML techniques that maximise economic value recovered from distressed credit.</p>
+
+  <h2>1. The post-default lifecycle</h2>
+  <p>When a borrower defaults, the bank must manage the defaulted asset through a <strong>recovery process</strong>. The recovery chain determines the final LGD (Lesson 2) actually realised. Understanding this chain is where Recovery Asset Models come in:</p>
+  <pre>Default event
+     ↓
+Classification as Non-Performing Loan (NPL) — EBA definition:
+  90+ days past due OR unlikely to pay
+     ↓
+Workout strategy selection:
+  ├── Forbearance (payment holiday, term extension, rate reduction)
+  ├── Restructuring (new repayment plan, debt-for-equity)
+  ├── Legal recovery (court proceedings, debt enforcement, repossession)
+  ├── Sale (NPL portfolio sale to vulture fund / specialist servicer)
+  └── Write-off (accept loss; may continue pursuing recovery informally)
+     ↓
+Recovery of value: cash collections, collateral realisation, sale proceeds
+     ↓
+Actual LGD = 1 − (PV of recoveries / EAD at default)</pre>
+
+  <h2>2. NPL portfolio management and ML</h2>
+  <p>Banks with large NPL books (particularly common in Southern Europe post-2008 and post-COVID) must manage thousands of individual defaulted accounts. Key ML applications:</p>
+  <table>
+    <thead><tr><th>Model</th><th>Problem</th><th>Technique</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Propensity to pay</strong></td><td>Which borrowers will resume payments if contacted? → prioritise collection effort</td><td>XGBoost on arrears behaviour, payment history, demographics, economic indicators</td></tr>
+      <tr><td><strong>Cure prediction</strong></td><td>Which forborne accounts will cure (exit NPL status) vs re-default?</td><td>Survival analysis (Cox PH) + gradient boosting; time-to-event outcome variable</td></tr>
+      <tr><td><strong>Workout strategy optimisation</strong></td><td>For each account, which strategy maximises PV of recoveries?</td><td>Multi-arm bandit / RL for personalised strategy assignment; treatment effect estimation</td></tr>
+      <tr><td><strong>Optimal contact timing</strong></td><td>When should collections call? Response rate peaks at specific times</td><td>Time-series analysis on call response data; A/B testing framework</td></tr>
+      <tr><td><strong>Collateral valuation</strong></td><td>What is the current market value of repossessed collateral (property, vehicles)?</td><td>Automated Valuation Models (AVM) — hedonic pricing regression / XGBoost on comparable sales</td></tr>
+    </tbody>
+  </table>
+
+  <h2>3. NPL portfolio sales — the pricing problem</html>
+  <p>Banks sell NPL portfolios to specialist distressed debt investors (funds such as Cerberus, Oaktree, Intrum). The sale price is determined by the buyer's expected recovery — different buyers have different servicing capabilities and return expectations. ML improves both sides:</p>
+  <ul>
+    <li><strong>Seller side:</strong> ML recovery model estimates expected recoveries by account to determine the reservation price (minimum acceptable bid) and to assess whether the portfolio is better sold or worked out internally</li>
+    <li><strong>Buyer side:</strong> similar ML models estimate recovery potential from the buyer's perspective — a specialist servicer may project higher recoveries if they have superior collections infrastructure</li>
+    <li><strong>Portfolio granularity:</strong> buyers want account-level scoring data to price individual loans; sellers must provide this while managing confidentiality. Federated learning approaches allow collaborative scoring without full data sharing.</li>
+  </ul>
+  <pre>NPL portfolio value (buyer perspective) = Σ_accounts [PV(E[recoveries] - servicing costs)]
+                                         − required return on capital employed
+
+ML improves E[recoveries] accuracy → less uncertainty premium in the bid
+→ smaller bid-ask spread → more NPL transactions clear</pre>
+
+  <h2>4. Real Estate Owned (REO) — property recovery</h2>
+  <p>When a mortgage defaults and the borrower cannot cure, the bank may repossess and sell the property (<strong>REO</strong> — Real Estate Owned). Managing an REO portfolio involves:</p>
+  <ul>
+    <li><strong>Automated Valuation Models (AVM):</strong> ML (gradient boosting on comparable sales, location features, property characteristics) provides rapid property value estimates for the REO portfolio. Reduces reliance on expensive manual appraisals.</li>
+    <li><strong>Time-to-sale prediction:</strong> regression model estimating how long a given property will take to sell — critical for cash flow projections and LGD discounting (longer time-to-sale = higher discount → higher LGD)</li>
+    <li><strong>Optimal pricing strategy:</strong> RL-based dynamic pricing — start at a price, observe interest, reduce if needed. Maximises the price achieved while minimising days-on-market.</li>
+  </ul>
+
+  <h2>5. EBA NPL guidelines and regulatory requirements</h2>
+  <p>The EBA's NPL guidelines (EBA/GL/2018/06 and the NPL transaction template) set requirements for how banks must manage and disclose NPL portfolios:</p>
+  <ul>
+    <li><strong>NPL ratio thresholds:</strong> banks with gross NPL ratio &gt; 5% must produce a time-bound NPL reduction plan (NPL strategy). Banks &gt; 10% face intensified supervisory scrutiny.</li>
+    <li><strong>Minimum provisioning (calendar provisioning, "backstop"):</strong> under the NPL backstop regulation (EU 630/2019), banks must hold 100% provisions for NPLs older than 3 years (unsecured) or 7–9 years (secured). This creates pressure to resolve NPLs before they become fully provisioned — accelerating the NPL lifecycle.</li>
+    <li><strong>EBA NPL transaction template:</strong> standardised data template for NPL sales. Banks must populate account-level fields — many of which are ML model outputs (estimated LGD, recovery score, AVM property value). The template enables buyers to price consistently across sellers.</li>
+  </ul>
+
+  <div class="callout risk">
+    <div class="callout-label">Model risk in recovery models</div>
+    Recovery models face a systematic biasing risk: during buoyant economic periods, cure rates are high and workout recoveries are strong. Models calibrated on good-times data will overestimate recoveries in a downturn — exactly when the model is most important. Validators must check that recovery model assumptions are downturn-adjusted (consistent with LGD Lesson 2 downturn LGD methodology) and that the model validation dataset includes periods of economic stress. EBA expects recovery models used for IFRS9 Stage 3 provisioning to be calibrated on long-run average experience, not the recent benign period.
+  </div>
+
+  <hr>
+  <div class="quiz">
+    <div class="quiz-title">Retrieval Practice</div>
+    <div class="question">
+      <p>1. A bank has an NPL ratio of 8%. Under EBA NPL guidelines, what must it produce?</p>
+      <div class="options">
+        <button class="option" data-correct="false">A full write-off of all non-performing loans within 12 months</button>
+        <button class="option" data-correct="true">A time-bound NPL reduction strategy, setting out how the bank will reduce its NPL ratio over a defined horizon</button>
+        <button class="option" data-correct="false">An immediate NPL portfolio sale at whatever price the market offers</button>
+        <button class="option" data-correct="false">A request to the regulator for a NPL ratio waiver if the loans are well-secured</button>
+      </div>
+      <div class="feedback good">Correct. The EBA's NPL guidelines require banks with NPL ratios above 5% to have a documented NPL strategy — setting out targets, timelines, and the mix of workout, forbearance, and sale strategies to reduce the ratio. Banks above 10% face intensified scrutiny. This creates a strategic planning requirement: the bank must model expected NPL reduction paths under different strategy combinations — exactly where ML-driven NPL management feeds into regulatory planning.</div>
+      <div class="feedback bad">EBA guidelines define 5% as the threshold for requiring an NPL strategy. At 8% (above 5%), the bank must produce a credible, time-bound plan to reduce the NPL ratio — setting targets for cure rates, portfolio sales, write-offs, and new NPL flows. At 10%+, supervisory engagement intensifies. The NPL strategy translates directly into recovery model demands: what cure rate does the forbearance programme need to achieve? What portfolio sale price is needed to meet the NPL reduction target?</div>
+    </div>
+    <div class="question">
+      <p>2. In NPL workout strategy optimisation, why is a multi-arm bandit or RL approach preferable to a simple A/B test?</p>
+      <div class="options">
+        <button class="option" data-correct="false">A/B testing cannot be applied to financial data due to data protection regulations</button>
+        <button class="option" data-correct="true">Multi-arm bandits balance exploration and exploitation — they allocate more traffic to better-performing strategies during learning, whereas A/B tests waste resources on underperforming arms throughout the experiment</button>
+        <button class="option" data-correct="false">RL models require less labelled training data than A/B testing frameworks</button>
+        <button class="option" data-correct="false">A/B tests can only test two strategies simultaneously; RL can test unlimited strategies</button>
+      </div>
+      <div class="feedback good">Correct. Classic A/B testing allocates fixed traffic proportions to each strategy for the full experiment duration — the underperforming strategy continues to harm customers until the experiment ends. In NPL management, where the stakes per customer are high and the customer population is fixed (you can't get more defaulted borrowers), this waste matters. Multi-arm bandits (Thompson sampling, UCB) continuously update the allocation toward better-performing strategies while still exploring the full action space. RL extends this to sequential decision problems — the strategy decision at month 3 affects which options are available at month 6.</div>
+      <div class="feedback bad">A/B testing is static: fixed allocation for the experiment duration, regardless of what you learn mid-experiment. If forbearance dramatically outperforms immediate legal action in the first month of testing, a pure A/B test still allocates 50/50 for the remaining duration — causing unnecessary harm to those assigned the inferior strategy. Multi-arm bandits update continuously, shifting allocation toward what's working. For a bank managing 10,000 defaulted accounts, this translates directly into higher total recoveries and less customer harm.</div>
+    </div>
+    <div class="question">
+      <p>3. Why does the time-to-sale of REO properties directly affect the LGD on the underlying mortgage?</p>
+      <div class="options">
+        <button class="option" data-correct="false">Longer sale times always reduce sale prices due to property market deterioration</button>
+        <button class="option" data-correct="true">LGD uses present value of recoveries — the longer the delay before cash is received, the greater the discount, increasing the effective LGD even if the nominal sale price is unchanged</button>
+        <button class="option" data-correct="false">Regulatory rules require an automatic additional provision for every month of REO holding period</button>
+        <button class="option" data-correct="false">Time-to-sale affects LGD only when the property market is declining</button>
+      </div>
+      <div class="feedback good">Correct. LGD = 1 − PV(recoveries)/EAD. The "PV" is present value — future cash flows are discounted. A recovery of £100k in 6 months is worth more than £100k in 3 years, at any positive discount rate. The LGD formula explicitly incorporates this discounting (workout period matters). This is why the time-to-realise collateral is as important as the collateral value itself — and why ML time-to-sale prediction improves both LGD accuracy and IFRS9 Stage 3 provisioning.</div>
+      <div class="feedback bad">The LGD formula discounts all cash flows. Recall from Lesson 2: LGD = 1 − PV(cash recoveries − collection costs) / EAD. A £100k property sale in 6 months is discounted less than the same sale in 3 years. Longer workouts → more discounting → higher effective LGD, even holding the nominal recovery value constant. This is why downturn LGD models incorporate stressed workout timelines (court processes slowing, property markets freezing) not just stressed collateral values.</div>
+    </div>
+    <div class="quiz-score"></div>
+  </div>
+  <hr>
+  <h2>Primary source to read next</h2>
+  <p><strong>EBA — "Guidelines on management of non-performing and forborne exposures" (EBA/GL/2018/06)</strong><br>
+  <a href="https://www.eba.europa.eu/regulation-and-policy/credit-risk/guidelines-management-non-performing-and-forborne-exposures" target="_blank">eba.europa.eu — EBA NPL Guidelines</a></p>
+  <p>The regulatory reference for NPL strategy requirements, governance, and the forbearance classification rules. Essential context for understanding why recovery models are needed and what they must produce. Pair with the EBA NPL transaction data template for the data standard used in portfolio sales.</p>
+  <h2>What comes next</h2>
+  <ul>
+    <li><a href="0022-cyber-risk.html">← Lesson 22: Cyber Risk Models</a></li>
+    <li><a href="0024-treasury-accounting.html">Lesson 24: Treasury &amp; Accounting Models →</a></li>
+  </ul>
+  <div class="lesson-footer">
+    <p>Ask your teacher anything — NPL workout strategy optimisation, AVM models, or EBA NPL guidelines are all worth discussing further.</p>
+    <p style="margin-top:.5rem;">Lesson 23 · <em>AI/ML in Banking &amp; Finance</em> · <a href="../RESOURCES.md">Resources</a></p>
+  </div>
+</div>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>
